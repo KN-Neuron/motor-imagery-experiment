@@ -11,7 +11,7 @@ from src.gui import GUIManager
 def sample_gui_manager() -> GUIManager:
     """Sample GUI manager for testing."""
 
-    return GUIManager(width=400, height=300)
+    return GUIManager()
 
 
 @pytest.fixture
