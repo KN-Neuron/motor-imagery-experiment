@@ -123,13 +123,24 @@ mypy src/
 
 ## CI/CD and Code Quality
 
-This project includes automated CI/CD pipelines that enforce code quality:
+This project includes automated CI/CD pipelines that enforce code quality and ensure robust software delivery:
+
+### Quality Checks Performed
 
 - **Formatting**: Checked with Black on every commit and PR
 - **Linting**: Checked with Flake8 on every commit and PR
 - **Type Safety**: Checked with MyPy on every commit and PR
-- **Testing**: All tests must pass before merging
-- **Security**: Dependencies are scanned for vulnerabilities
+- **Testing**: All tests must pass before merging (unit and integration tests)
+- **Security**: Dependencies are scanned for vulnerabilities weekly
+- **Coverage**: Test coverage reports are generated and uploaded to Codecov
+
+### GitHub Actions Workflows
+
+The following GitHub Actions workflows are configured:
+
+- **Python CI** (`python-ci.yml`): Runs formatting, linting, type checking, testing and coverage reporting
+- **Pre-commit Hooks** (`pre-commit.yml`): Runs all pre-commit hooks for consistency
+- **Security Scanning** (`security-scan.yml`): Scans dependencies for known vulnerabilities
 
 ### Pre-commit Hooks
 
@@ -141,3 +152,24 @@ To run these checks automatically before each commit:
    ```
 
 The hooks will automatically run formatting, linting, and type checking before each commit.
+
+### Setting Up Branch Protection (Required)
+
+To enforce these quality checks, set up branch protection rules in GitHub:
+
+1. Navigate to your GitHub repository
+2. Go to the "Settings" tab
+3. Click on "Branches" in the left sidebar
+4. Under "Branch protection rules", click "Add rule"
+5. Enter "main" as the branch name pattern (or your primary branch)
+6. Select the following options:
+   - [x] Require pull request reviews before merging
+     - Set "Required number of approvals" to at least 1 (or your preferred number)
+   - [x] Require status checks to pass before merging
+     - Check "Require branches to be up to date before merging"
+     - In "Status checks that are required", ensure the following are selected:
+       - `test (3.13)` - From python-ci.yml workflow
+       - `pre-commit` - From pre-commit.yml workflow
+   - [x] Require conversation resolution before merging
+
+Once configured, these rules will prevent merging pull requests until all quality checks pass.
