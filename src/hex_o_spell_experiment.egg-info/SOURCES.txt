@@ -1,7 +1,11 @@
 README.md
 pyproject.toml
 src/data_manager/__init__.py
+src/data_manager/sampling_strategies.py
+src/data_manager/session_manager.py
+src/data_manager/types.py
 src/egg_headset/__init__.py
+src/flow_controller/__init__.py
 src/flow_controller/flow_controller.py
 src/flow_controller/state/__init__.py
 src/flow_controller/state/calibration_state.py

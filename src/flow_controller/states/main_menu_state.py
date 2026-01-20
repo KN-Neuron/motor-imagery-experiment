@@ -22,15 +22,16 @@ class MainMenuState(FlowState):
         # Render the main menu with headset status
         self.gui_manager.render(self.gui_manager.display_main_menu, headset_connected)
         
-        # Handle events
-        change_state_event = self.gui_manager.handle_main_menu_events()
+        # Process events
+        events = self.gui_manager.process_main_menu_events()
 
-        if change_state_event == MainMenuEvent.EXPERIMENT_BTN_CLICKED:
-            print("Starting Experiment State")
-        elif change_state_event == MainMenuEvent.CALIBRATION_BTN_CLICKED:
-            print("Starting Calibration State")
-        elif change_state_event == MainMenuEvent.QUIT:
-            self.flow_controller.running = False
+        for event in events:
+            if event == MainMenuEvent.EXPERIMENT_BTN_CLICKED:
+                print("Starting Experiment State")
+            elif event == MainMenuEvent.CALIBRATION_BTN_CLICKED:
+                print("Starting Calibration State")
+            elif event == MainMenuEvent.QUIT:
+                self.flow_controller.running = False
 
     @override
     def exit(self):

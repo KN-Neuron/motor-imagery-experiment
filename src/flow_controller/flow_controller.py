@@ -1,17 +1,16 @@
 import pygame
 import sys
 
-from src.flow_controller.state.main_menu_state import MainMenuState
-from src.flow_controller.state.experiment_state import ExperimentState 
-from src.flow_controller.state.calibration_state import CalibrationState
+from src.flow_controller.states.main_menu_state import MainMenuState
+from src.flow_controller.states.experiment_state import ExperimentState 
+from src.flow_controller.states.calibration_state import CalibrationState
 
 
 # Flow controller managing the overall application flow and state transitions
 class FlowController:
-    def __init__(self, gui_manager, eeg_headset, data_manager) -> None:
+    def __init__(self, gui_manager, eeg_headset) -> None:
         self.gui_manager = gui_manager
         self.eeg_headset = eeg_headset
-        self.data_manager = data_manager
         self.state = None
         self.clock = pygame.time.Clock()
         self.running = True
@@ -70,8 +69,8 @@ class FlowController:
         if self.eeg_headset.connected:
             self.eeg_headset.disconnect()
 
-        export_file = self.data_manager.export_current_session("final_session")
-        print(f"Session data exported to: {export_file}")
+        # export_file = self.data_manager.export_current_session("final_session")
+        # print(f"Session data exported to: {export_file}")
 
         pygame.quit()
 

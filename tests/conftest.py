@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from src.data_manager import DataManager
+# from src.data_manager import DataManager
 from src.egg_headset import EggHeadset
 from src.gui import GUIManager
 
@@ -21,8 +21,8 @@ def sample_egg_headset() -> EggHeadset:
     return EggHeadset(device_address="mock_device")
 
 
-@pytest.fixture
-def sample_data_manager(tmp_path: Path) -> DataManager:
-    """Sample data manager for testing with temporary directory."""
+# @pytest.fixture
+# def sample_data_manager(tmp_path: Path) -> DataManager:
+#     """Sample data manager for testing with temporary directory."""
 
-    return DataManager(data_dir=str(tmp_path))
+#     return DataManager(data_dir=str(tmp_path))

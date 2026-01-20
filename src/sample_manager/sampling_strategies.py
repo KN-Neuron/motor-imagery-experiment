@@ -1,6 +1,6 @@
 from typing import List, Any
 import random
-from .types import ExperimentStepType
+from .experiment_step_type import ExperimentStepType
 
 
 class BaseSampler:

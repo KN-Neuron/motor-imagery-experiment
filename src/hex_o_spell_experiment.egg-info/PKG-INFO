@@ -6,7 +6,7 @@ Author-email: Your Name <your.email@example.com>
 License: MIT
 Requires-Python: >=3.13
 Description-Content-Type: text/markdown
-Requires-Dist: pygame>=2.5.2
+Requires-Dist: pygame>=2.6.1
 Requires-Dist: numpy>=1.24.0
 Requires-Dist: pytest>=7.4.0
 Requires-Dist: pytest-mock>=3.11.1

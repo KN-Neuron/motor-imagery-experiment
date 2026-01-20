@@ -2,7 +2,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Optional
 from .sampling_strategies import RandomSampler, StratifiedSampler, BaseSampler
-from .types import ExperimentStepType
+from .experiment_step_type import ExperimentStepType
 
 
 @dataclass
@@ -11,7 +11,7 @@ class ExperimentStep:
     duration_ms: int
 
 
-class SessionManager:
+class SampleManager:
     def __init__(
         self,
         strategy: str = "stratified",
@@ -32,11 +32,10 @@ class SessionManager:
         else:
             self.sampler = RandomSampler()
 
-        seq = self.sampler.generate_session_sequence(
+        full_sequence_types = self.sampler.generate_session_sequence(
             commands,
             trials_per_class,
         )
-        full_sequence_types = seq
 
         self.step_queue: deque[ExperimentStep] = deque()
 

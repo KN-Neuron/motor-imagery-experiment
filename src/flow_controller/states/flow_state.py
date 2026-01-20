@@ -4,7 +4,6 @@ class FlowState:
         self.flow_controller = flow_controller
         self.gui_manager = flow_controller.gui_manager
         self.eeg_headset = flow_controller.eeg_headset
-        self.data_manager = flow_controller.data_manager
 
     # Setup when entering the state
     def enter(self): pass

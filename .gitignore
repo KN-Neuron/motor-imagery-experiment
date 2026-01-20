@@ -4,3 +4,6 @@ venv
 *.egg-info/
 .DS_Store
 src/*.egg-info/
+dist/
+build/
+**/hex_o_spell_experiment.egg-info/
