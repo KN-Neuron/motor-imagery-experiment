@@ -55,8 +55,6 @@ class FlowController:
         finally:
             self.shutdown()
 
-        self.shutdown()
-
     # Main loop of the flow controller
     def flow_loop(self):
         self.running = True

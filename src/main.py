@@ -14,6 +14,5 @@ def main() -> None:
     flow_controller = FlowController(gui_manager, headset, data_manager)
     flow_controller.start()
 
-
 if __name__ == "__main__":
     main()
