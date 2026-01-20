@@ -161,15 +161,19 @@ class MainMenuView:
         for event in events:
             # Button clicks
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # Get keyboard modifiers
+                keys = pygame.key.get_mods()
+                alt_pressed = keys & pygame.KMOD_ALT
+
                 # Check fullscreen button
                 if self.fullscreen_btn_rect and self.fullscreen_btn_rect.collidepoint(event.pos):
                     menu_events.append(MainMenuEvent.TOGGLE_FULLSCREEN)
                 # Check frameless button
                 elif self.frameless_btn_rect and self.frameless_btn_rect.collidepoint(event.pos):
                     menu_events.append(MainMenuEvent.TOGGLE_FRAME)
-                # Check experiment
+                # Check experiment (returns tuple with alt state)
                 elif self.experiment_btn and self.experiment_btn.rect.collidepoint(event.pos):
-                    menu_events.append(MainMenuEvent.EXPERIMENT_BTN_CLICKED)
+                    menu_events.append((MainMenuEvent.EXPERIMENT_BTN_CLICKED, alt_pressed))
                 # Check calibration
                 elif self.calibration_btn and self.calibration_btn.rect.collidepoint(event.pos):
                     menu_events.append(MainMenuEvent.CALIBRATION_BTN_CLICKED)

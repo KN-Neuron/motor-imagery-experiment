@@ -4,7 +4,6 @@ from .main_menu_state import MainMenuState
 from .calibration_state import CalibrationState
 
 __all__ = [
-    "FlowState",
     "ExperimentState",
     "MainMenuState",
     "CalibrationState",

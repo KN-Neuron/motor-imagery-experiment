@@ -1,10 +1,7 @@
 import pygame
 import sys
 
-from src.flow_controller.states.main_menu_state import MainMenuState
-from src.flow_controller.states.experiment_state import ExperimentState 
-from src.flow_controller.states.calibration_state import CalibrationState
-
+from .states import MainMenuState, ExperimentState, CalibrationState
 
 # Flow controller managing the overall application flow and state transitions
 class FlowController:

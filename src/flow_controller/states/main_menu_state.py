@@ -1,6 +1,7 @@
 from typing import override
 
 from src.gui.gui_manager import MainMenuEvent
+from .experiment_state import ExperimentState
 
 from . import FlowState
 
@@ -26,8 +27,15 @@ class MainMenuState(FlowState):
         events = self.gui_manager.process_main_menu_events()
 
         for event in events:
-            if event == MainMenuEvent.EXPERIMENT_BTN_CLICKED:
-                print("Starting Experiment State")
+            # Handle experiment button (can be tuple with alt state or just enum)
+            if isinstance(event, tuple) and event[0] == MainMenuEvent.EXPERIMENT_BTN_CLICKED:
+                alt_pressed = event[1]
+                if alt_pressed or self.eeg_headset.connected:
+                    print(f"Starting Experiment State (no_eeg_mode={not self.eeg_headset.connected})")
+                    self.flow_controller.change_state(ExperimentState)
+                    return # Exit to avoid further processing fater state change
+                else:
+                    print("Cannot start experiment: EEG headset not connected. Hold Alt to start without EEG.")
             elif event == MainMenuEvent.CALIBRATION_BTN_CLICKED:
                 print("Starting Calibration State")
             elif event == MainMenuEvent.QUIT:

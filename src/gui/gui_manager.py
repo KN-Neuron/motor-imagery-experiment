@@ -1,12 +1,8 @@
 import pygame
 
 from .views.main_menu_view import MainMenuView, MainMenuEvent
-from .views.experiment_view import ExperimentView
+from .views.experiment_view import ExperimentView, ExperimentEvent
 from .views.calibration_view import CalibrationView
-
-
-# Re-export MainMenuEvent for backward compatibility
-__all__ = ['GUIManager', 'MainMenuEvent']
 
 
 class GUIManager:
@@ -134,18 +130,40 @@ class GUIManager:
 
 # Experiment facade methods
 
-    def display_experiment(self) -> None:
+    def display_experiment(self, step_type=None, no_eeg_mode=False, progress_percent=0.0) -> None:
         """Display the experiment view"""
         self.experiment_view.render(
             self.window,
             self.width,
-            self.height
+            self.height,
+            step_type,
+            no_eeg_mode,
+            self.is_fullscreen,
+            self.is_frameless,
+            progress_percent
         )
 
-    def process_experiment_events(self) -> list:
+    def process_experiment_events(self) -> list[ExperimentEvent]:
         """Gather experiment events and handle some internally"""
-        events = self._process_events()
-        return self.experiment_view.process_events(events)
+        events_to_process = self._process_events()
+
+        # Delegate to view
+        experiment_events = self.experiment_view.process_events(events_to_process)
+
+        # Separate and process some events internally
+        i = 0
+        while i < len(experiment_events):
+            event = experiment_events[i]
+            if event == ExperimentEvent.TOGGLE_FULLSCREEN:
+                self.toggle_fullscreen()
+                experiment_events.pop(i)
+            elif event == ExperimentEvent.TOGGLE_FRAME:
+                self.toggle_frame()
+                experiment_events.pop(i)
+            else:
+                i += 1
+
+        return experiment_events
 
 # Calibration facade methods
 
