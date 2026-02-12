@@ -16,7 +16,7 @@ class MainMenuState(FlowState):
         self.gui_manager.render(self.gui_manager.display_main_menu)
 
     @override   
-    def iter(self):
+    def tick(self):
         # Check headset connection status
         headset_connected = self.eeg_headset.connected
         
@@ -30,14 +30,20 @@ class MainMenuState(FlowState):
             # Handle experiment button (can be tuple with alt state or just enum)
             if isinstance(event, tuple) and event[0] == MainMenuEvent.EXPERIMENT_BTN_CLICKED:
                 alt_pressed = event[1]
-                if alt_pressed or self.eeg_headset.connected:
+                if alt_pressed:
                     print(f"Starting Experiment State (no_eeg_mode={not self.eeg_headset.connected})")
                     self.flow_controller.change_state(ExperimentState)
                     return # Exit to avoid further processing fater state change
+                elif headset_connected:
+                    print(f"Starting Experiment State with EEG")
+                    self.flow_controller.change_state(ExperimentState)
+                    return
                 else:
                     print("Cannot start experiment: EEG headset not connected. Hold Alt to start without EEG.")
+
             elif event == MainMenuEvent.CALIBRATION_BTN_CLICKED:
                 print("Starting Calibration State")
+
             elif event == MainMenuEvent.QUIT:
                 self.flow_controller.running = False
 

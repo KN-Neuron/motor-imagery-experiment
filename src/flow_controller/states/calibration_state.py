@@ -13,7 +13,7 @@ class CalibrationState(FlowState):
         pass
 
     @override
-    def iter(self):
+    def tick(self):
         pass
 
     @override

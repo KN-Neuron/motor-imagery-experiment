@@ -9,7 +9,7 @@ class FlowState:
     def enter(self): pass
 
     # Main loop iteration for the state
-    def iter(self): pass
+    def tick(self): pass
 
     # Cleanup when exiting the state
     def exit(self): pass

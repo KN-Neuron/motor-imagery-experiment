@@ -1,5 +1,5 @@
 from typing import override, TYPE_CHECKING
-import pygame
+from PyQt6.QtCore import QTime
 
 from src.sample_manager.sample_manager import SampleManager, ExperimentStep
 from src.sample_manager.experiment_step_type import ExperimentStepType
@@ -17,10 +17,12 @@ class ExperimentState(FlowState):
         super().__init__(flow_controller)
         self.sample_manager: SampleManager = None
         self.current_step: ExperimentStep = None
-        self.step_start_time: int = 0
+        self.step_start_time: QTime = None
         self.no_eeg_mode: bool = False
         self.total_steps: int = 0
         self.completed_steps: int = 0
+        self.is_paused: bool = False
+        self.pause_elapsed_time: int = 0  # Track time when paused
 
     @override
     def enter(self):
@@ -40,7 +42,7 @@ class ExperimentState(FlowState):
 
         # Get first step
         self.current_step = self.sample_manager.get_next()
-        self.step_start_time = pygame.time.get_ticks()
+        self.step_start_time = QTime.currentTime()
 
         print(f"Experiment started (no_eeg_mode={self.no_eeg_mode})")
         print(f"Total steps: {self.total_steps}")
@@ -48,7 +50,7 @@ class ExperimentState(FlowState):
             print(f"First step: {self.current_step.step_type.value} for {self.current_step.duration_ms}ms")
 
     @override
-    def iter(self):
+    def tick(self):
         """Handle experiment phase transitions"""
         if not self.current_step:
             # Experiment finished, return to main menu
@@ -84,10 +86,25 @@ class ExperimentState(FlowState):
                 print("Quit requested")
                 self.flow_controller.running = False
                 return
+            elif event == ExperimentEvent.PAUSE:
+                self.is_paused = not self.is_paused
+                if self.is_paused:
+                    # Save elapsed time when pausing
+                    current_time = QTime.currentTime()
+                    self.pause_elapsed_time = self.step_start_time.msecsTo(current_time)
+                    print(f"Experiment PAUSED (elapsed: {self.pause_elapsed_time}ms)")
+                else:
+                    # Resume: reset start time accounting for paused time
+                    self.step_start_time = QTime.currentTime().addMSecs(-self.pause_elapsed_time)
+                    print(f"Experiment RESUMED (continuing from: {self.pause_elapsed_time}ms)")
+                    
+        # Skip time progression when paused
+        if self.is_paused:
+            return
 
         # Check if current step duration has elapsed
-        current_time = pygame.time.get_ticks()
-        elapsed = current_time - self.step_start_time
+        current_time = QTime.currentTime()
+        elapsed = self.step_start_time.msecsTo(current_time)  # Milliseconds elapsed
 
         if elapsed >= self.current_step.duration_ms:
             # Move to next step

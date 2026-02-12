@@ -1,45 +1,54 @@
-import pygame
-from typing import Callable, Optional, Tuple
+from PyQt6.QtWidgets import QPushButton
+from PyQt6.QtCore import Qt, QRect
+from PyQt6.QtGui import QColor
+from typing import Callable, Tuple
 
-class Button:
+class Button(QPushButton):
     def __init__(self, 
-        rect: pygame.Rect, text: str, 
+        rect: QRect, 
+        text: str, 
         callback: Callable[[], None],
         base_color: Tuple[int, int, int, int] = (40, 120, 220, 255),
         hover_color: Tuple[int, int, int, int] = (60, 150, 240, 255),
-        text_color: Tuple[int, int, int] = (255, 255, 255)
+        text_color: Tuple[int, int, int] = (255, 255, 255),
+        parent=None
     ) -> None:
-        self.rect = rect
-        self.text = text
+        super().__init__(text, parent)
+        self.setGeometry(rect)
         self.callback = callback
         self.base_color = base_color
         self.hover_color = hover_color
         self.text_color = text_color
-        self.hover = False
-
-    def draw(self, 
-        surface: pygame.Surface, 
-        font: Optional[pygame.font.Font]
-    ) -> None:
-        color = self.hover_color if self.hover else self.base_color
-
-        # Create a transparent surface for the button
-        button_surface = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
         
-        # Draw button with transparency
-        pygame.draw.rect(button_surface, color, button_surface.get_rect(), border_radius=12)
+        # Connect click
+        self.clicked.connect(self.callback)
         
-        # Blit the button surface
-        surface.blit(button_surface, self.rect.topleft)
-
-        # Text
-        try:
-            if font is None:
-                font = pygame.font.SysFont('Arial', 22)
-            text_surf = font.render(self.text, True, self.text_color)
-            tx = self.rect.x + (self.rect.width - text_surf.get_width()) // 2
-            ty = self.rect.y + (self.rect.height - text_surf.get_height()) // 2
-            surface.blit(text_surf, (tx, ty))
-        except Exception:
-            # In headless/test envs font rendering might fail; silently skip
-            pass
+        # Apply stylesheet
+        self._update_stylesheet(False)
+        
+    def _update_stylesheet(self, hover: bool):
+        color = self.hover_color if hover else self.base_color
+        bg_color = f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3]})"
+        text_col = f"rgb({self.text_color[0]}, {self.text_color[1]}, {self.text_color[2]})"
+        
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {bg_color};
+                color: {text_col};
+                border-radius: 12px;
+                font-size: 22px;
+                font-family: Arial;
+                border: none;
+            }}
+            QPushButton:hover {{
+                background-color: rgba({self.hover_color[0]}, {self.hover_color[1]}, {self.hover_color[2]}, {self.hover_color[3]});
+            }}
+        """)
+    
+    def enterEvent(self, event):
+        self._update_stylesheet(True)
+        super().enterEvent(event)
+    
+    def leaveEvent(self, event):
+        self._update_stylesheet(False)
+        super().leaveEvent(event)

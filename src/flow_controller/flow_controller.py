@@ -1,4 +1,5 @@
-import pygame
+from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QApplication
 import sys
 
 from .states import MainMenuState, ExperimentState, CalibrationState
@@ -9,7 +10,8 @@ class FlowController:
         self.gui_manager = gui_manager
         self.eeg_headset = eeg_headset
         self.state = None
-        self.clock = pygame.time.Clock()
+        self.timer = QTimer()
+        self.timer.timeout.connect(self._tick) # Connect timer to 
         self.running = True
 
     # Method to change the current state of the flow controller
@@ -43,7 +45,11 @@ class FlowController:
         self.change_state(MainMenuState) # Set initial state
 
         try:
-            self.flow_loop()
+            # Start the timer for 100 FPS
+            self.timer.start(10)
+            
+            # Run Qt event loop
+            QApplication.instance().exec()
 
         except Exception as e:
             print(f"\nUnhandled exception occurred: {e}")
@@ -51,24 +57,19 @@ class FlowController:
         finally:
             self.shutdown()
 
-    # Main loop of the flow controller
-    def flow_loop(self):
-        self.running = True
+    # Tick method called by QTimer
+    def _tick(self):
+        if not self.running:
+            self.timer.stop()
+            QApplication.instance().quit()
+            return
         
-        while self.running:
-            # Handle global events and logic
-            self.state.iter()
-            # Wait for next tick
-            self.clock.tick(60)
+        # Handle global events and logic
+        self.state.tick()
 
     # Shutdown procedure for the flow controller
     def shutdown(self):
         if self.eeg_headset.connected:
             self.eeg_headset.disconnect()
-
-        # export_file = self.data_manager.export_current_session("final_session")
-        # print(f"Session data exported to: {export_file}")
-
-        pygame.quit()
 
         sys.exit(0)

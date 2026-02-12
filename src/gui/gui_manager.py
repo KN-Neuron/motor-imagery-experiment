@@ -1,8 +1,10 @@
-import pygame
+from PyQt6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QHBoxLayout
+from PyQt6.QtCore import Qt
 
 from .views.main_menu_view import MainMenuView, MainMenuEvent
 from .views.experiment_view import ExperimentView, ExperimentEvent
 from .views.calibration_view import CalibrationView
+from .shared.sidebar import Sidebar
 
 
 class GUIManager:
@@ -20,108 +22,101 @@ class GUIManager:
         self.main_menu_view = MainMenuView()
         self.experiment_view = ExperimentView()
         self.calibration_view = CalibrationView()
+        
+        # Initialize sidebar
+        self.sidebar = Sidebar()
+        
+        self.window = None
+        self.stacked_widget = None
+        self.current_view = None
 
     def initialize(self) -> None:
         """Initialize the GUI system"""
-        pygame.init()
-        self.window = pygame.display.set_mode(
-            (self.width, self.height),
-            pygame.RESIZABLE
-        )
-        pygame.display.set_caption("Hex-O-Spell Experiment")
-
-    def toggle_frame(self) -> None:
-        """Toggle window frame (borderless window mode)"""
-        self.is_frameless = not self.is_frameless
-
-        if self.is_frameless:
-            info = pygame.display.Info()
-            self.width, self.height = info.current_w, info.current_h
-
-            self.window = pygame.display.set_mode(
-                (self.width, self.height),
-                pygame.NOFRAME
-            )
-        else:
-            self.window = pygame.display.set_mode(
-                (self.width, self.height),
-                pygame.RESIZABLE
-            )
+        self.window = QMainWindow()
+        self.window.setWindowTitle("Hex-O-Spell Experiment")
+        self.window.setMinimumSize(self.min_width, self.min_height)
+        self.window.resize(self.width, self.height)
+        
+        # Create main container with sidebar and stacked widget
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Add sidebar
+        layout.addWidget(self.sidebar)
+        
+        # Setup stacked widget for view switching
+        self.stacked_widget = QStackedWidget()
+        layout.addWidget(self.stacked_widget)
+        
+        # Add views to stacked widget
+        self.stacked_widget.addWidget(self.main_menu_view)
+        self.stacked_widget.addWidget(self.experiment_view)
+        self.stacked_widget.addWidget(self.calibration_view)
+        
+        # Connect sidebar signals
+        self.sidebar.fullscreen_toggled.connect(self.toggle_fullscreen)
+        self.sidebar.pause_toggled.connect(self.toggle_pause)
+        
+        self.window.setCentralWidget(container)
+        self.window.show()
 
     def toggle_fullscreen(self) -> None:
         """Toggle actual fullscreen mode"""
         self.is_fullscreen = not self.is_fullscreen
 
         if self.is_fullscreen:
-            self.window = pygame.display.set_mode(
-                (0, 0),
-                pygame.FULLSCREEN
-            )
-            self.width = self.window.get_width()
-            self.height = self.window.get_height()
+            self.window.showFullScreen()
         else:
-            self.width = self.default_width
-            self.height = self.default_height
-            self.window = pygame.display.set_mode(
-                (self.width, self.height),
-                pygame.RESIZABLE
-            )
-            self.is_frameless = False  # Going windowed disables frameless
-            
-    def _handle_window_resize(self, event: pygame.event.Event) -> None:
-        """Handle window resize event"""
-        if not self.is_fullscreen:
-            new_width = max(event.w, self.min_width)
-            new_height = max(event.h, self.min_height)
-            self.width = new_width
-            self.height = new_height
-            self.window = pygame.display.set_mode(
-                (new_width, new_height),
-                pygame.RESIZABLE
-            )
+            self.window.showNormal()
+            self.window.resize(self.default_width, self.default_height)
 
-    def _process_events(self) -> list:
-        """Gather pygame events, and process window resize internally"""
-        events_to_process = []
+        # Update sidebar state
+        self.sidebar.update_states(self.is_fullscreen)
+    
+    def toggle_pause(self) -> None:
+        """Handle pause toggle from sidebar - forward as experiment event"""
+        if self.current_view == self.experiment_view:
+            self.experiment_view.pending_events.append(ExperimentEvent.PAUSE)
+    
+    def eventFilter(self, obj, event):
+        """Global event filter to catch ESC in experiment view"""
+        if event.type() == QEvent.Type.KeyPress:
+            key_event = event
+            if key_event.key() == Qt.Key.Key_Escape and self.current_view == self.experiment_view:
+                self.experiment_view.pending_events.append(ExperimentEvent.ABORT)
+                return True  # Event handled
+        return False  # Let event propagate
 
-        # Go through all events, separate and process resize internally
-        for event in pygame.event.get():
-            if event.type == pygame.VIDEORESIZE:
-                self._handle_window_resize(event)
-            else:
-                events_to_process.append(event)
-
-        return events_to_process
 
 # Main menu facade methods
 
     def display_main_menu(self, headset_connected: bool = False) -> None:
         """Display the main menu"""
-        self.main_menu_view.render(
-            self.window,
-            self.width,
-            self.height,
+        self.current_view = self.main_menu_view
+        self.stacked_widget.setCurrentWidget(self.main_menu_view)
+        self.main_menu_view.update_content(
             self.is_fullscreen,
             self.is_frameless,
             headset_connected
         )
+        # Configure sidebar for main menu
+        self.sidebar.set_buttons_visibility(show_pause=False, show_back=False)
 
     def process_main_menu_events(self) -> list[MainMenuEvent]:
         """Gather main menu events and handle some internally"""
-        events_to_process = self._process_events()
-
-        # Delegate to view
-        menu_events = self.main_menu_view.process_events(events_to_process)
+        # Get events from view
+        menu_events = self.main_menu_view.get_pending_events()
 
         # Separate and process some events internally
         i = 0
         while i < len(menu_events):
             event = menu_events[i]
-            if event == MainMenuEvent.TOGGLE_FULLSCREEN:
+            event_type = event[0] if isinstance(event, tuple) else event
+            
+            if event_type == MainMenuEvent.TOGGLE_FULLSCREEN:
                 self.toggle_fullscreen()
-                menu_events.pop(i)
-            elif event == MainMenuEvent.TOGGLE_FRAME:
-                self.toggle_frame()
                 menu_events.pop(i)
             else:
                 i += 1
@@ -132,33 +127,29 @@ class GUIManager:
 
     def display_experiment(self, step_type=None, no_eeg_mode=False, progress_percent=0.0) -> None:
         """Display the experiment view"""
-        self.experiment_view.render(
-            self.window,
-            self.width,
-            self.height,
+        self.current_view = self.experiment_view
+        self.stacked_widget.setCurrentWidget(self.experiment_view)
+        self.experiment_view.update_content(
             step_type,
             no_eeg_mode,
             self.is_fullscreen,
             self.is_frameless,
             progress_percent
         )
+        # Configure sidebar for experiment (show pause, hide back for now)
+        self.sidebar.set_buttons_visibility(show_pause=True, show_back=False)
 
     def process_experiment_events(self) -> list[ExperimentEvent]:
         """Gather experiment events and handle some internally"""
-        events_to_process = self._process_events()
+        # Get all events from view (keyboard + sidebar)
+        experiment_events = self.experiment_view.get_pending_events()
 
-        # Delegate to view
-        experiment_events = self.experiment_view.process_events(events_to_process)
-
-        # Separate and process some events internally
+        # Process some events internally, pass others to state
         i = 0
         while i < len(experiment_events):
             event = experiment_events[i]
             if event == ExperimentEvent.TOGGLE_FULLSCREEN:
                 self.toggle_fullscreen()
-                experiment_events.pop(i)
-            elif event == ExperimentEvent.TOGGLE_FRAME:
-                self.toggle_frame()
                 experiment_events.pop(i)
             else:
                 i += 1
@@ -169,21 +160,16 @@ class GUIManager:
 
     def display_calibration(self) -> None:
         """Display the calibration view"""
-        self.calibration_view.render(
-            self.window,
-            self.width,
-            self.height
-        )
+        self.current_view = self.calibration_view
+        self.stacked_widget.setCurrentWidget(self.calibration_view)
 
     def process_calibration_events(self) -> list:
         """Gather calibration events and handle some internally"""
-        events = self._process_events()
-        return self.calibration_view.process_events(events)
+        return self.calibration_view.get_pending_events()
 
 # Common rendering method
 
     def render(self, display_function, *args, **kwargs) -> None:
         """Render the current GUI state using the provided display function"""
-        self.window.fill((15, 15, 25))
         display_function(*args, **kwargs)
-        pygame.display.flip()
+        QApplication.processEvents()
