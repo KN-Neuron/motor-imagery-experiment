@@ -51,10 +51,11 @@ For development:
    pytest
    ```
 
-3. Run the application:
+3. Run the application (as Python module):
    ```bash
-   python src/main.py
+   python -m src.main
    ```
+   
 
 ## Project Structure
 
