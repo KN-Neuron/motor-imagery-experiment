@@ -1,0 +1,34 @@
+# Python virtual environment
+venv/
+
+# Python compiled/cached files
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE settings
+.idea/
+.vscode/
+
+# Python package metadata
+*.egg-info/
+src/*.egg-info/
+**/hex_o_spell_experiment.egg-info/
+
+# Build artifacts
+dist/
+build/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment variables
+.env
+.env.local
+
+# OS-specific
+.DS_Store
+Thumbs.db
