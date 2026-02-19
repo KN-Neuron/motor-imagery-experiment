@@ -1,17 +1,35 @@
+from numpy import ndarray
+from egg_headset.drivers.mock import MockDriver
+from egg_headset.model import HeadsetConfiguration, HeadsetModel
 from . import EggHeadset
+import numpy as np
 
-eeg = EggHeadset(port="COM4")  # Ustaw właściwy port
+
+driver_config = HeadsetConfiguration(
+    model=HeadsetModel.MIDI_16CH_BASE, config_path="brainaccess_headsets_config.yaml"
+)
+# driver = BrainAccessDriver(driver_config)
+driver = MockDriver(driver_config)
+eeg = EggHeadset(driver)
 
 eeg.connect()
 eeg.start()
+eeg.annotate("start")
 
-run = True
-while run:
-    x = input("Wprowadź (exit aby zakończyć): ")
+samples = ndarray(shape=(driver_config.n_channels, 0), dtype=float)
+
+while True:
+    x = input("Wprowadź adnotacje (exit aby zakończyć): ")
+
     if x == "exit":
-        run = False
-    else:
-        eeg.annotate(x)
+        break
+
+    output = eeg.get_output(seconds=1)
+    samples = np.concatenate((samples, output), axis=1)
+
+    eeg.annotate(x)
 
 eeg.stop()
-eeg.save("test.fif")
+
+
+print(samples)
