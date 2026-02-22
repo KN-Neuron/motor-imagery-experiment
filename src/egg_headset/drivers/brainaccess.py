@@ -97,4 +97,14 @@ class BrainAccessDriver:
         if not chunks:
             return np.empty((self.channel_count, 0))
 
-        return np.concatenate(chunks, axis=1)
+        raw_hw_data = np.concatenate(chunks, axis=1)
+
+        eeg_row_indices = [
+            row_idx
+            for hw_id, row_idx in self._eeg.channels_indexes.items()
+            if self._eeg.channels_type[hw_id] == "EEG"
+        ]
+
+        eeg_only_data = raw_hw_data[eeg_row_indices, :]
+
+        return eeg_only_data
