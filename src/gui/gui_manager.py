@@ -52,6 +52,7 @@ class GUIManager:
         # Connect sidebar signals
         self.sidebar.fullscreen_toggled.connect(self.toggle_fullscreen)
         self.sidebar.pause_toggled.connect(self.toggle_pause)
+        self.sidebar.quit_requested.connect(self.on_quit_requested)
 
         self.window.setCentralWidget(container)
         self.window.show()
@@ -71,12 +72,16 @@ class GUIManager:
         if self.current_view == self.experiment_view:
             self.experiment_view.pending_events.append(ExperimentEvent.PAUSE)
 
+    def on_quit_requested(self) -> None:
+        if self.current_view == self.main_menu_view:
+            self.main_menu_view.pending_events.append(MainMenuEvent.QUIT)
+
 # Main menu methods
 
     def show_main_menu(self) -> None:
         self.current_view = self.main_menu_view
         self.stacked_widget.setCurrentWidget(self.main_menu_view)
-        self.sidebar.set_buttons_visibility(show_pause=False, show_back=False)
+        self.sidebar.set_buttons_visibility(show_pause=False, show_back=False, show_quit=True)
 
     def update_main_menu(self, headset_connected: bool = False) -> None:
         self.main_menu_view.update_content(headset_connected)

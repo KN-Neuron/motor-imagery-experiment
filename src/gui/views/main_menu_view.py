@@ -56,7 +56,7 @@ class MainMenuView(QWidget):
         btn_w, btn_h = 200, 50
         spacing = 20
         btn_x = (width - btn_w) // 2
-        btn_y = int(height * 0.5)
+        btn_y = int(height * 0.4)
 
         # Update button positions
         self.experiment_btn.setGeometry(btn_x, btn_y, btn_w, btn_h)
