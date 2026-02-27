@@ -1,6 +1,9 @@
 from typing import Protocol
 import numpy as np
 
+from egg_headset.drivers.brainaccess import BrainAccessDriver
+from egg_headset.drivers.mock import MockDriver
+
 
 class HeadsetDriver(Protocol):
     """Interface for EEG headset drivers."""
@@ -67,3 +70,6 @@ class HeadsetDriver(Protocol):
             Returns empty array if no data available.
         """
         ...
+
+
+__all__ = ["BrainAccessDriver", "MockDriver", "HeadsetDriver"]

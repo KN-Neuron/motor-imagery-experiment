@@ -1,7 +1,7 @@
 from typing import Callable, List
 import numpy as np
 from typing import Optional
-from egg_headset.drivers.drivers import HeadsetDriver
+from egg_headset.drivers import HeadsetDriver
 from egg_headset.ring_buffer import RingBuffer
 
 EegSubscriberCallback = Callable[[np.ndarray], None]

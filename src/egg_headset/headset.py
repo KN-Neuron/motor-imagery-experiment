@@ -1,5 +1,8 @@
+import threading
+import time
+
 from numpy import ndarray
-from egg_headset.drivers.mock import MockDriver
+from egg_headset.drivers import MockDriver
 from egg_headset.model import HeadsetConfiguration, HeadsetModel
 from . import EggHeadset
 import numpy as np
@@ -17,6 +20,15 @@ eeg.start()
 eeg.annotate("start")
 
 samples = ndarray(shape=(driver_config.n_channels, 0), dtype=float)
+
+
+def poll_continuously() -> None:
+    while True:
+        eeg.poll()
+        time.sleep(0.05)  # 20 Hz polling rate
+
+
+threading.Thread(target=poll_continuously, daemon=True).start()
 
 while True:
     x = input("Wprowadź adnotacje (exit aby zakończyć): ")
