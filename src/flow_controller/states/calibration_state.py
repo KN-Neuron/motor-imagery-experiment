@@ -3,8 +3,9 @@ from typing import override
 from . import FlowState
 
 
-# Calibration state for the flow controller handling calibration procedures
 class CalibrationState(FlowState):
+    """Handles calibration procedures."""
+
     def __init__(self, flow_controller):
         super().__init__(flow_controller)
 
@@ -19,4 +20,3 @@ class CalibrationState(FlowState):
     @override
     def exit(self):
         pass
-

@@ -11,8 +11,9 @@ if TYPE_CHECKING:
     from .main_menu_state import MainMenuState
 
 
-# Experiment state for the flow controller handling experiment procedures
 class ExperimentState(FlowState):
+    """Handles experiment procedures and phase transitions."""
+
     def __init__(self, flow_controller):
         super().__init__(flow_controller)
         self.sample_manager: SampleManager = None
@@ -22,25 +23,22 @@ class ExperimentState(FlowState):
         self.total_steps: int = 0
         self.completed_steps: int = 0
         self.is_paused: bool = False
-        self.pause_elapsed_time: int = 0  # Track time when paused
+        self.pause_elapsed_time: int = 0
 
     @override
     def enter(self):
-        """Initialize experiment with SampleManager"""
-        # Check if running without EEG
+        """Initialize experiment with SampleManager."""
         self.no_eeg_mode = not self.eeg_headset.connected
 
-        # Create sample manager with stratified strategy (hardcoded for now)
+        # Hardcoded strategy for now
         self.sample_manager = SampleManager(
             strategy="stratified",
             trials_per_class=5
         )
 
-        # Track total steps for progress calculation
         self.total_steps = len(self.sample_manager.step_queue)
         self.completed_steps = 0
 
-        # Get first step
         self.current_step = self.sample_manager.get_next()
         self.step_start_time = QTime.currentTime()
 
@@ -53,16 +51,14 @@ class ExperimentState(FlowState):
 
     @override
     def tick(self):
-        """Handle experiment phase transitions"""
+        """Handle experiment phase transitions."""
         if not self.current_step:
-            # Experiment finished, return to main menu
             print("Experiment completed!")
             # Import here to avoid circular import
             from .main_menu_state import MainMenuState
             self.flow_controller.change_state(MainMenuState)
             return
 
-        # Calculate progress percentage
         progress_percent = self.completed_steps / self.total_steps if self.total_steps > 0 else 0.0
 
         self.gui_manager.update_experiment(
@@ -71,10 +67,8 @@ class ExperimentState(FlowState):
             progress_percent
         )
 
-        # Process events
         events = self.gui_manager.process_experiment_events()
 
-        # Handle experiment events
         for event in events:
             if event == ExperimentEvent.ABORT:
                 print("Experiment aborted by user (ESC)")
@@ -89,25 +83,21 @@ class ExperimentState(FlowState):
             elif event == ExperimentEvent.PAUSE:
                 self.is_paused = not self.is_paused
                 if self.is_paused:
-                    # Save elapsed time when pausing
                     current_time = QTime.currentTime()
                     self.pause_elapsed_time = self.step_start_time.msecsTo(current_time)
                     print(f"Experiment PAUSED (elapsed: {self.pause_elapsed_time}ms)")
                 else:
-                    # Resume: reset start time accounting for paused time
+                    # Resume: reset start time accounting for paused duration
                     self.step_start_time = QTime.currentTime().addMSecs(-self.pause_elapsed_time)
                     print(f"Experiment RESUMED (continuing from: {self.pause_elapsed_time}ms)")
-                    
-        # Skip time progression when paused
+
         if self.is_paused:
             return
 
-        # Check if current step duration has elapsed
         current_time = QTime.currentTime()
-        elapsed = self.step_start_time.msecsTo(current_time)  # Milliseconds elapsed
+        elapsed = self.step_start_time.msecsTo(current_time)
 
         if elapsed >= self.current_step.duration_ms:
-            # Move to next step
             self.completed_steps += 1
             self.current_step = self.sample_manager.get_next()
             self.step_start_time = current_time
@@ -117,7 +107,7 @@ class ExperimentState(FlowState):
 
     @override
     def exit(self):
-        """Cleanup experiment resources"""
+        """Cleanup experiment resources."""
         self.sample_manager = None
         self.current_step = None
         self.total_steps = 0

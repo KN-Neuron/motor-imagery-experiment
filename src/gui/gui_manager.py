@@ -18,52 +18,45 @@ class GUIManager:
         self.is_fullscreen = False
         self.is_frameless = False
 
-        # Initialize views
         self.main_menu_view = MainMenuView()
         self.experiment_view = ExperimentView()
         self.calibration_view = CalibrationView()
-        
-        # Initialize sidebar
+
         self.sidebar = Sidebar()
-        
+
         self.window = None
         self.stacked_widget = None
         self.current_view = None
 
     def initialize(self) -> None:
-        """Initialize the GUI system"""
+        """Create the main window, layout and connect sidebar signals."""
         self.window = QMainWindow()
         self.window.setWindowTitle("Hex-O-Spell Experiment")
         self.window.setMinimumSize(self.min_width, self.min_height)
         self.window.resize(self.width, self.height)
-        
-        # Create main container with sidebar and stacked widget
+
         container = QWidget()
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        
-        # Add sidebar
+
         layout.addWidget(self.sidebar)
-        
-        # Setup stacked widget for view switching
+
         self.stacked_widget = QStackedWidget()
         layout.addWidget(self.stacked_widget)
-        
-        # Add views to stacked widget
+
         self.stacked_widget.addWidget(self.main_menu_view)
         self.stacked_widget.addWidget(self.experiment_view)
         self.stacked_widget.addWidget(self.calibration_view)
-        
+
         # Connect sidebar signals
         self.sidebar.fullscreen_toggled.connect(self.toggle_fullscreen)
         self.sidebar.pause_toggled.connect(self.toggle_pause)
-        
+
         self.window.setCentralWidget(container)
         self.window.show()
 
     def toggle_fullscreen(self) -> None:
-        """Toggle actual fullscreen mode"""
         self.is_fullscreen = not self.is_fullscreen
 
         if self.is_fullscreen:
@@ -72,11 +65,9 @@ class GUIManager:
             self.window.showNormal()
             self.window.resize(self.default_width, self.default_height)
 
-        # Update sidebar state
         self.sidebar.update_states(self.is_fullscreen)
-    
+
     def toggle_pause(self) -> None:
-        """Handle pause toggle from sidebar - forward as experiment event"""
         if self.current_view == self.experiment_view:
             self.experiment_view.pending_events.append(ExperimentEvent.PAUSE)
 
@@ -91,16 +82,14 @@ class GUIManager:
         self.main_menu_view.update_content(headset_connected)
 
     def process_main_menu_events(self) -> list[MainMenuEvent]:
-        """Gather main menu events and handle some internally"""
-        # Get events from view
+        """Handle TOGGLE_FULLSCREEN internally, pass rest to state."""
         menu_events = self.main_menu_view.get_pending_events()
 
-        # Separate and process some events internally
         i = 0
         while i < len(menu_events):
             event = menu_events[i]
             event_type = event[0] if isinstance(event, tuple) else event
-            
+
             if event_type == MainMenuEvent.TOGGLE_FULLSCREEN:
                 self.toggle_fullscreen()
                 menu_events.pop(i)
@@ -120,11 +109,9 @@ class GUIManager:
         self.experiment_view.update_content(step_type, no_eeg_mode, progress_percent)
 
     def process_experiment_events(self) -> list[ExperimentEvent]:
-        """Gather experiment events and handle some internally"""
-        # Get all events from view (keyboard + sidebar)
+        """Handle TOGGLE_FULLSCREEN internally, pass rest to state."""
         experiment_events = self.experiment_view.get_pending_events()
 
-        # Process some events internally, pass others to state
         i = 0
         while i < len(experiment_events):
             event = experiment_events[i]
@@ -143,6 +130,4 @@ class GUIManager:
         self.stacked_widget.setCurrentWidget(self.calibration_view)
 
     def process_calibration_events(self) -> list:
-        """Gather calibration events and handle some internally"""
         return self.calibration_view.get_pending_events()
-

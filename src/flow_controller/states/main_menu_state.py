@@ -6,8 +6,9 @@ from .experiment_state import ExperimentState
 from . import FlowState
 
 
-# Main menu state for the flow controller handling main menu interactions
 class MainMenuState(FlowState):
+    """Handles main menu interactions."""
+
     def __init__(self, flow_controller):
         super().__init__(flow_controller)
 
@@ -17,12 +18,10 @@ class MainMenuState(FlowState):
 
     @override
     def tick(self):
-        # Check headset connection status
         headset_connected = self.eeg_headset.connected
 
         self.gui_manager.update_main_menu(headset_connected)
-        
-        # Process events
+
         events = self.gui_manager.process_main_menu_events()
 
         for event in events:
@@ -32,7 +31,7 @@ class MainMenuState(FlowState):
                 if alt_pressed:
                     print(f"Starting Experiment State (no_eeg_mode={not self.eeg_headset.connected})")
                     self.flow_controller.change_state(ExperimentState)
-                    return # Exit to avoid further processing fater state change
+                    return  # Exit to avoid further processing after state change
                 elif headset_connected:
                     print(f"Starting Experiment State with EEG")
                     self.flow_controller.change_state(ExperimentState)
