@@ -2,6 +2,7 @@ from enum import Enum
 from PyQt6.QtWidgets import QWidget, QPushButton, QLabel
 from PyQt6.QtCore import Qt, QRect
 from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont
+from PyQt6.QtWidgets import QApplication
 from ..shared.button import Button
 import os
 
@@ -12,7 +13,6 @@ class MainMenuEvent(Enum):
     CALIBRATION_BTN_CLICKED = "calibration_btn_clicked"
     QUIT = "quit"
 
-
 class MainMenuView(QWidget):
     def __init__(self) -> None:
         super().__init__()
@@ -20,8 +20,6 @@ class MainMenuView(QWidget):
         self.calibration_btn: Button = None
         self.pending_events = []
         self.headset_connected = False
-        self.is_fullscreen = False
-        self.is_frameless = False
         
         self._setup_ui()
         
@@ -32,7 +30,6 @@ class MainMenuView(QWidget):
         
         # Create main buttons (will be positioned in update_content)
         def on_experiment_click():
-            from PyQt6.QtWidgets import QApplication
             mods = QApplication.keyboardModifiers()
             alt_pressed = bool(mods & Qt.KeyboardModifier.AltModifier)
             print(f"[DEBUG] Experiment button clicked, Alt pressed: {alt_pressed}")
@@ -54,10 +51,8 @@ class MainMenuView(QWidget):
             parent=self
         )
 
-    def update_content(self, is_fullscreen: bool, is_frameless: bool, headset_connected: bool):
+    def update_content(self, headset_connected: bool):
         """Update the view content"""
-        self.is_fullscreen = is_fullscreen
-        self.is_frameless = is_frameless
         self.headset_connected = headset_connected
         
         # Update main buttons geometry
@@ -75,6 +70,7 @@ class MainMenuView(QWidget):
         
         # Trigger repaint
         self.update()
+    
     
     def paintEvent(self, event):
         """Custom paint for title, logo, and status"""

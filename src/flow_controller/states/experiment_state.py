@@ -44,6 +44,8 @@ class ExperimentState(FlowState):
         self.current_step = self.sample_manager.get_next()
         self.step_start_time = QTime.currentTime()
 
+        self.gui_manager.show_experiment()
+
         print(f"Experiment started (no_eeg_mode={self.no_eeg_mode})")
         print(f"Total steps: {self.total_steps}")
         if self.current_step:
@@ -63,9 +65,7 @@ class ExperimentState(FlowState):
         # Calculate progress percentage
         progress_percent = self.completed_steps / self.total_steps if self.total_steps > 0 else 0.0
 
-        # Render current experiment phase
-        self.gui_manager.render(
-            self.gui_manager.display_experiment,
+        self.gui_manager.update_experiment(
             self.current_step.step_type,
             self.no_eeg_mode,
             progress_percent

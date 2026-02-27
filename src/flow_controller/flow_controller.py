@@ -11,6 +11,7 @@ class FlowController:
         self.eeg_headset = eeg_headset
         self.state = None
         self.timer = QTimer()
+        self.timer.start(10) # Configure the timer for 100 FPS
         self.timer.timeout.connect(self._tick) # Connect timer to 
         self.running = True
 
@@ -45,9 +46,6 @@ class FlowController:
         self.change_state(MainMenuState) # Set initial state
 
         try:
-            # Start the timer for 100 FPS
-            self.timer.start(10)
-            
             # Run Qt event loop
             QApplication.instance().exec()
 

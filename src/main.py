@@ -7,14 +7,13 @@ from src.flow_controller import FlowController
 
 
 def main() -> None:
-    app = QApplication(sys.argv)
+    app = QApplication(sys.argv) # Save QApplication instance to prevent garbage collection clearing it out before the main loop starts
     
     gui_manager = GUIManager()
     headset = EggHeadset()
 
     flow_controller = FlowController(gui_manager, headset)
     flow_controller.start()
-
 
 if __name__ == "__main__":
     main()

@@ -13,15 +13,14 @@ class MainMenuState(FlowState):
 
     @override
     def enter(self):
-        self.gui_manager.render(self.gui_manager.display_main_menu)
+        self.gui_manager.show_main_menu()
 
-    @override   
+    @override
     def tick(self):
         # Check headset connection status
         headset_connected = self.eeg_headset.connected
-        
-        # Render the main menu with headset status
-        self.gui_manager.render(self.gui_manager.display_main_menu, headset_connected)
+
+        self.gui_manager.update_main_menu(headset_connected)
         
         # Process events
         events = self.gui_manager.process_main_menu_events()

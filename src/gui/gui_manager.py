@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QWidget, QHBoxLayout
+from PyQt6.QtWidgets import QMainWindow, QStackedWidget, QWidget, QHBoxLayout
 from PyQt6.QtCore import Qt
 
 from .views.main_menu_view import MainMenuView, MainMenuEvent
@@ -79,30 +79,16 @@ class GUIManager:
         """Handle pause toggle from sidebar - forward as experiment event"""
         if self.current_view == self.experiment_view:
             self.experiment_view.pending_events.append(ExperimentEvent.PAUSE)
-    
-    def eventFilter(self, obj, event):
-        """Global event filter to catch ESC in experiment view"""
-        if event.type() == QEvent.Type.KeyPress:
-            key_event = event
-            if key_event.key() == Qt.Key.Key_Escape and self.current_view == self.experiment_view:
-                self.experiment_view.pending_events.append(ExperimentEvent.ABORT)
-                return True  # Event handled
-        return False  # Let event propagate
 
+# Main menu methods
 
-# Main menu facade methods
-
-    def display_main_menu(self, headset_connected: bool = False) -> None:
-        """Display the main menu"""
+    def show_main_menu(self) -> None:
         self.current_view = self.main_menu_view
         self.stacked_widget.setCurrentWidget(self.main_menu_view)
-        self.main_menu_view.update_content(
-            self.is_fullscreen,
-            self.is_frameless,
-            headset_connected
-        )
-        # Configure sidebar for main menu
         self.sidebar.set_buttons_visibility(show_pause=False, show_back=False)
+
+    def update_main_menu(self, headset_connected: bool = False) -> None:
+        self.main_menu_view.update_content(headset_connected)
 
     def process_main_menu_events(self) -> list[MainMenuEvent]:
         """Gather main menu events and handle some internally"""
@@ -123,21 +109,15 @@ class GUIManager:
 
         return menu_events
 
-# Experiment facade methods
+# Experiment methods
 
-    def display_experiment(self, step_type=None, no_eeg_mode=False, progress_percent=0.0) -> None:
-        """Display the experiment view"""
+    def show_experiment(self) -> None:
         self.current_view = self.experiment_view
         self.stacked_widget.setCurrentWidget(self.experiment_view)
-        self.experiment_view.update_content(
-            step_type,
-            no_eeg_mode,
-            self.is_fullscreen,
-            self.is_frameless,
-            progress_percent
-        )
-        # Configure sidebar for experiment (show pause, hide back for now)
         self.sidebar.set_buttons_visibility(show_pause=True, show_back=False)
+
+    def update_experiment(self, step_type=None, no_eeg_mode=False, progress_percent=0.0) -> None:
+        self.experiment_view.update_content(step_type, no_eeg_mode, progress_percent)
 
     def process_experiment_events(self) -> list[ExperimentEvent]:
         """Gather experiment events and handle some internally"""
@@ -156,10 +136,9 @@ class GUIManager:
 
         return experiment_events
 
-# Calibration facade methods
+# Calibration methods
 
-    def display_calibration(self) -> None:
-        """Display the calibration view"""
+    def show_calibration(self) -> None:
         self.current_view = self.calibration_view
         self.stacked_widget.setCurrentWidget(self.calibration_view)
 
@@ -167,9 +146,3 @@ class GUIManager:
         """Gather calibration events and handle some internally"""
         return self.calibration_view.get_pending_events()
 
-# Common rendering method
-
-    def render(self, display_function, *args, **kwargs) -> None:
-        """Render the current GUI state using the provided display function"""
-        display_function(*args, **kwargs)
-        QApplication.processEvents()

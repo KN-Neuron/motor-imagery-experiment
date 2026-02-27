@@ -18,8 +18,6 @@ class ExperimentView(QWidget):
         self.pending_events = []
         self.step_type = None
         self.no_eeg_mode = False
-        self.is_fullscreen = False
-        self.is_frameless = False
         self.progress_percent = 0.0
         
         self._setup_ui()
@@ -34,12 +32,10 @@ class ExperimentView(QWidget):
         self.esc_shortcut.activated.connect(self._on_esc_pressed)
         self.esc_shortcut.setEnabled(False)  # Disabled by default    
 
-    def update_content(self, step_type, no_eeg_mode, is_fullscreen, is_frameless, progress_percent):
+    def update_content(self, step_type, no_eeg_mode, progress_percent):
         """Update the view content"""
         self.step_type = step_type
         self.no_eeg_mode = no_eeg_mode
-        self.is_fullscreen = is_fullscreen
-        self.is_frameless = is_frameless
         self.progress_percent = progress_percent
         
         # Trigger repaint
