@@ -39,9 +39,13 @@ class MainMenuView(QWidget):
             parent=self
         )
 
+        def on_calibration_click():
+            mods = QApplication.keyboardModifiers()
+            alt_pressed = bool(mods & Qt.KeyboardModifier.AltModifier)
+            self.pending_events.append((MainMenuEvent.CALIBRATION_BTN_CLICKED, alt_pressed))
+
         self.calibration_btn = Button(
-            QRect(0, 0, 200, 50), "Start Calibration",
-            lambda: self.pending_events.append(MainMenuEvent.CALIBRATION_BTN_CLICKED),
+            QRect(0, 0, 200, 50), "Start Calibration", on_calibration_click,
             base_color=(60, 60, 80, 180),
             hover_color=(80, 80, 120, 200),
             parent=self

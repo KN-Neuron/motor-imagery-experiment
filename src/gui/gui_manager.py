@@ -3,8 +3,9 @@ from PyQt6.QtCore import Qt
 
 from .views.main_menu_view import MainMenuView, MainMenuEvent
 from .views.experiment_view import ExperimentView, ExperimentEvent
-from .views.calibration_view import CalibrationView
+from .views.calibration_view import CalibrationView, CalibrationEvent
 from .shared.sidebar import Sidebar
+from .shared.config_dialog import CalibrationConfigDialog, CalibrationConfig
 
 
 class GUIManager:
@@ -71,6 +72,8 @@ class GUIManager:
     def toggle_pause(self) -> None:
         if self.current_view == self.experiment_view:
             self.experiment_view.pending_events.append(ExperimentEvent.PAUSE)
+        elif self.current_view == self.calibration_view:
+            self.calibration_view.pending_events.append(CalibrationEvent.PAUSE)
 
     def on_quit_requested(self) -> None:
         if self.current_view == self.main_menu_view:
@@ -133,6 +136,15 @@ class GUIManager:
     def show_calibration(self) -> None:
         self.current_view = self.calibration_view
         self.stacked_widget.setCurrentWidget(self.calibration_view)
+        self.sidebar.set_buttons_visibility(show_pause=True)
 
-    def process_calibration_events(self) -> list:
+    def update_calibration(self, step_type=None, classified_as=None, progress_percent=0.0, no_eeg_mode=False) -> None:
+        self.calibration_view.update_content(step_type, classified_as, progress_percent, no_eeg_mode)
+
+    def process_calibration_events(self) -> list[CalibrationEvent]:
         return self.calibration_view.get_pending_events()
+
+    def show_calibration_config_dialog(self) -> CalibrationConfig | None:
+        dialog = CalibrationConfigDialog(self.window)
+        dialog.exec()
+        return dialog.get_config()
