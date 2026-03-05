@@ -68,13 +68,14 @@ class CalibrationState(FlowState):
             self.flow_controller.change_state(MainMenuState)
             return
 
-        progress = self.completed_steps / self.total_steps if self.total_steps > 0 else 0.0
+        progress_percent = self.completed_steps / self.total_steps if self.total_steps > 0 else 0.0
 
         self.gui_manager.update_calibration(
             self.current_step.step_type,
             self.classified_as,
-            progress,
-            self.no_eeg_mode
+            self.no_eeg_mode,
+            self.is_paused,
+            progress_percent,
         )
 
         events = self.gui_manager.process_calibration_events()

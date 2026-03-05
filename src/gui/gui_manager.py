@@ -78,6 +78,10 @@ class GUIManager:
     def on_quit_requested(self) -> None:
         if self.current_view == self.main_menu_view:
             self.main_menu_view.pending_events.append(MainMenuEvent.QUIT)
+        elif self.current_view == self.experiment_view:
+            self.experiment_view.pending_events.append(ExperimentEvent.QUIT)
+        elif self.current_view == self.calibration_view:
+            self.calibration_view.pending_events.append(CalibrationEvent.QUIT)
 
 # Main menu methods
 
@@ -90,21 +94,7 @@ class GUIManager:
         self.main_menu_view.update_content(headset_connected)
 
     def process_main_menu_events(self) -> list[MainMenuEvent]:
-        """Handle TOGGLE_FULLSCREEN internally, pass rest to state."""
-        menu_events = self.main_menu_view.get_pending_events()
-
-        i = 0
-        while i < len(menu_events):
-            event = menu_events[i]
-            event_type = event[0] if isinstance(event, tuple) else event
-
-            if event_type == MainMenuEvent.TOGGLE_FULLSCREEN:
-                self.toggle_fullscreen()
-                menu_events.pop(i)
-            else:
-                i += 1
-
-        return menu_events
+        return self.main_menu_view.get_pending_events()
 
 # Experiment methods
 
@@ -113,23 +103,16 @@ class GUIManager:
         self.stacked_widget.setCurrentWidget(self.experiment_view)
         self.sidebar.set_buttons_visibility(show_pause=True, show_back=False)
 
-    def update_experiment(self, step_type=None, no_eeg_mode=False, progress_percent=0.0) -> None:
-        self.experiment_view.update_content(step_type, no_eeg_mode, progress_percent)
+    def update_experiment(self, 
+        step_type=None, 
+        no_eeg_mode=False, 
+        is_paused=False,
+        progress_percent=0.0
+    ) -> None:
+        self.experiment_view.update_content(step_type, no_eeg_mode, is_paused, progress_percent)
 
     def process_experiment_events(self) -> list[ExperimentEvent]:
-        """Handle TOGGLE_FULLSCREEN internally, pass rest to state."""
-        experiment_events = self.experiment_view.get_pending_events()
-
-        i = 0
-        while i < len(experiment_events):
-            event = experiment_events[i]
-            if event == ExperimentEvent.TOGGLE_FULLSCREEN:
-                self.toggle_fullscreen()
-                experiment_events.pop(i)
-            else:
-                i += 1
-
-        return experiment_events
+        return self.experiment_view.get_pending_events()
 
 # Calibration methods
 
@@ -138,8 +121,14 @@ class GUIManager:
         self.stacked_widget.setCurrentWidget(self.calibration_view)
         self.sidebar.set_buttons_visibility(show_pause=True)
 
-    def update_calibration(self, step_type=None, classified_as=None, progress_percent=0.0, no_eeg_mode=False) -> None:
-        self.calibration_view.update_content(step_type, classified_as, progress_percent, no_eeg_mode)
+    def update_calibration(self, 
+        step_type=None, 
+        classified_as=None, 
+        no_eeg_mode=False,
+        is_paused=False,
+        progress_percent=0.0
+    ) -> None:
+        self.calibration_view.update_content(step_type, classified_as, no_eeg_mode, is_paused, progress_percent)
 
     def process_calibration_events(self) -> list[CalibrationEvent]:
         return self.calibration_view.get_pending_events()

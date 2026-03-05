@@ -4,13 +4,11 @@ from PyQt6.QtGui import QPainter, QColor, QFont, QKeySequence, QShortcut
 from enum import Enum
 from src.sample_manager.experiment_step_type import ExperimentStepType
 
-
+ 
 class ExperimentEvent(Enum):
-    TOGGLE_FULLSCREEN = "toggle_fullscreen"
     ABORT = "abort"
     QUIT = "quit"
     PAUSE = "pause"
-
 
 STEP_DISPLAY = {
     ExperimentStepType.FIXATION:      (QColor(200, 200, 200), "FIXATION"),
@@ -23,13 +21,13 @@ STEP_DISPLAY = {
     ExperimentStepType.SSVEP_FOCUS:   (QColor(255, 255, 150), "SSVEP FOCUS"),
 }
 
-
 class ExperimentView(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.pending_events = []
         self.step_type = None
         self.no_eeg_mode = False
+        self.is_paused = False
         self.progress_percent = 0.0
 
         self._setup_ui()
@@ -42,9 +40,10 @@ class ExperimentView(QWidget):
         self.esc_shortcut.activated.connect(self._on_esc_pressed)
         self.esc_shortcut.setEnabled(False)
 
-    def update_content(self, step_type, no_eeg_mode, progress_percent):
+    def update_content(self, step_type, no_eeg_mode, is_paused, progress_percent):
         self.step_type = step_type
         self.no_eeg_mode = no_eeg_mode
+        self.is_paused = is_paused
         self.progress_percent = progress_percent
         self.update()
 
@@ -54,10 +53,14 @@ class ExperimentView(QWidget):
 
         w, h = self.width(), self.height()
 
-        self._draw_header(painter, w)
-        if self.no_eeg_mode:
+        if self.no_eeg_mode and self.is_paused:
             self._draw_no_eeg_indicator(painter, w)
+
+        if self.is_paused:
+            self._draw_header(painter, w)
+
         self._draw_step(painter, w, h)
+        
         self._draw_progress_bar(painter, w, h)
 
     def _draw_header(self, painter: QPainter, w: int):
@@ -90,12 +93,13 @@ class ExperimentView(QWidget):
             step_w = painter.fontMetrics().horizontalAdvance(text)
             painter.drawText((w - step_w) // 2, int(h * 0.4) + painter.fontMetrics().ascent(), text)
 
-        hint_font = QFont('Arial', 18)
-        painter.setFont(hint_font)
-        painter.setPen(QColor(150, 150, 150))
-        hint = "Press ESC to abort experiment"
-        hint_w = painter.fontMetrics().horizontalAdvance(hint)
-        painter.drawText((w - hint_w) // 2, int(h * 0.92) + painter.fontMetrics().ascent(), hint)
+        if self.is_paused:
+            hint_font = QFont('Arial', 18)
+            painter.setFont(hint_font)
+            painter.setPen(QColor(150, 150, 150))
+            hint = "Press ESC to abort experiment"
+            hint_w = painter.fontMetrics().horizontalAdvance(hint)
+            painter.drawText((w - hint_w) // 2, int(h * 0.92) + painter.fontMetrics().ascent(), hint)
 
     def _draw_fixation_cross(self, painter: QPainter, w: int, h: int):
         cx, cy = w // 2, int(h * 0.4) + 24

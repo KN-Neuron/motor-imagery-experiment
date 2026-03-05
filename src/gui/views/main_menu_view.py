@@ -8,7 +8,6 @@ import os
 
 
 class MainMenuEvent(Enum):
-    TOGGLE_FULLSCREEN = "toggle_fullscreen"
     EXPERIMENT_BTN_CLICKED = "experiment_btn_clicked"
     CALIBRATION_BTN_CLICKED = "calibration_btn_clicked"
     QUIT = "quit"

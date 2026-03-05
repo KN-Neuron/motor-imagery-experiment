@@ -64,6 +64,7 @@ class ExperimentState(FlowState):
         self.gui_manager.update_experiment(
             self.current_step.step_type,
             self.no_eeg_mode,
+            self.is_paused,
             progress_percent
         )
 

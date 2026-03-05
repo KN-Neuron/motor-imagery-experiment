@@ -9,7 +9,7 @@ from src.sample_manager.experiment_step_type import ExperimentStepType
 class CalibrationEvent(Enum):
     ABORT = "abort"
     PAUSE = "pause"
-
+    QUIT = "quit"
 
 STEP_DISPLAY = {
     ExperimentStepType.DOUBLE_BLINK:   (QColor(100, 200, 255), "DOUBLE BLINK"),
@@ -20,15 +20,15 @@ STEP_DISPLAY = {
     ExperimentStepType.SSVEP_FOCUS:    (QColor(255, 255, 150), "SSVEP FOCUS"),
 }
 
-
 class CalibrationView(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.pending_events = []
         self.step_type: ExperimentStepType | None = None
         self.classified_as: ExperimentStepType | None = None
-        self.progress_percent: float = 0.0
         self.no_eeg_mode: bool = False
+        self.is_paused = False
+        self.progress_percent: float = 0.0
 
         self._setup_ui()
 
@@ -42,14 +42,18 @@ class CalibrationView(QWidget):
         )
         self.esc_shortcut.setEnabled(False)
 
-    def update_content(self, step_type: ExperimentStepType | None,
-                       classified_as: ExperimentStepType | None,
-                       progress_percent: float,
-                       no_eeg_mode: bool = False):
+    def update_content(self, 
+        step_type: ExperimentStepType | None,
+        classified_as: ExperimentStepType | None,
+        no_eeg_mode: bool = False,
+        is_paused: bool = False,
+        progress_percent: float = 0.0,
+    ):
         self.step_type = step_type
         self.classified_as = classified_as
-        self.progress_percent = progress_percent
         self.no_eeg_mode = no_eeg_mode
+        self.is_paused = is_paused
+        self.progress_percent = progress_percent
         self.update()
 
     def paintEvent(self, event):
@@ -58,15 +62,8 @@ class CalibrationView(QWidget):
 
         w, h = self.width(), self.height()
 
-        if self.no_eeg_mode:
-            mode_font = QFont("Arial", 16)
-            painter.setFont(mode_font)
-            painter.setPen(QColor(180, 100, 100))
-            mode_text = "NO EEG MODE"
-            mode_w = painter.fontMetrics().horizontalAdvance(mode_text)
-            painter.drawText(w - mode_w - 15, 15 + painter.fontMetrics().ascent(), mode_text)
-
-        self._draw_header(painter, w)
+        if self.no_eeg_mode and self.is_paused:
+            self._draw_no_eeg_indicator(painter, w)
 
         if self.classified_as is None:
             self._draw_cue(painter, w, h)
@@ -75,7 +72,19 @@ class CalibrationView(QWidget):
 
         self._draw_progress_bar(painter, w, h)
 
-        # ESC hint
+        if self.is_paused:
+            self._draw_header(painter, w)
+            self._draw_esc_hint(painter, w, h)
+
+    def _draw_no_eeg_indicator(self, painter: QPainter, w: int):
+        mode_font = QFont("Arial", 16)
+        painter.setFont(mode_font)
+        painter.setPen(QColor(180, 100, 100))
+        mode_text = "NO EEG MODE"
+        mode_w = painter.fontMetrics().horizontalAdvance(mode_text)
+        painter.drawText(w - mode_w - 15, 15 + painter.fontMetrics().ascent(), mode_text)
+
+    def _draw_esc_hint(self, painter: QPainter, w: int, h: int):
         hint_font = QFont("Arial", 14)
         painter.setFont(hint_font)
         painter.setPen(QColor(80, 80, 100))
@@ -95,6 +104,10 @@ class CalibrationView(QWidget):
         if not self.step_type:
             return
 
+        if self.step_type == ExperimentStepType.FIXATION:
+            self._draw_fixation_cross(painter, w, h)
+            return
+
         color, label = STEP_DISPLAY.get(self.step_type, (QColor(255, 255, 255), self.step_type.value.upper()))
 
         # Action label
@@ -103,6 +116,14 @@ class CalibrationView(QWidget):
         painter.setPen(color)
         action_w = painter.fontMetrics().horizontalAdvance(label)
         painter.drawText((w - action_w) // 2, int(h * 0.42) + painter.fontMetrics().ascent(), label)
+
+    def _draw_fixation_cross(self, painter: QPainter, w: int, h: int):
+        cx, cy = w // 2, int(h * 0.42) + 24
+        arm, thick = 45, 6
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(200, 200, 200))
+        painter.drawRect(cx - arm, cy - thick // 2, arm * 2, thick)
+        painter.drawRect(cx - thick // 2, cy - arm, thick, arm * 2)
 
     def _draw_result(self, painter: QPainter, w: int, h: int):
         prompted_color, prompted_label = STEP_DISPLAY.get(

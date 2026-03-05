@@ -7,7 +7,7 @@ from src.flow_controller import FlowController
 
 
 def main() -> None:
-    app = QApplication(sys.argv) # Save QApplication instance to prevent garbage collection clearing it out before the main loop starts
+    app = QApplication(sys.argv) # QApplication is saved as variable to prevent garbage collection clearing it out
     
     gui_manager = GUIManager()
     headset = EggHeadset()
