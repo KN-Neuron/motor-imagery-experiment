@@ -83,7 +83,6 @@ class SidebarButton(QWidget):
             self.clicked.emit()
         super().mousePressEvent(event)
 
-
 class Sidebar(QWidget):
     """Sidebar with common controls."""
 
@@ -165,11 +164,15 @@ class Sidebar(QWidget):
         self.pause_btn.set_icon("▶" if self.is_paused else "⏸")
         self.pause_btn.set_label("RESUME" if self.is_paused else "PAUSE")
         self.pause_btn.setToolTip("Resume" if self.is_paused else "Pause")
-        print(f"[DEBUG SIDEBAR] Pause toggled: {self.is_paused}")
+        print(f"[Sidebar] Pause toggled: {self.is_paused}")
         self.pause_toggled.emit()
 
     def _on_back_clicked(self):
         self.back_requested.emit()
+
+    def reset_pause(self):
+        if self.is_paused:
+            self._on_pause_clicked()
 
     def set_buttons_visibility(self, show_pause: bool = False, show_back: bool = False, show_quit: bool = False):
         self.pause_btn.setVisible(show_pause)

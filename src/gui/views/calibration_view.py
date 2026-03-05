@@ -37,9 +37,7 @@ class CalibrationView(QWidget):
 
         # ESC shortcut enabled/disabled via showEvent/hideEvent
         self.esc_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
-        self.esc_shortcut.activated.connect(
-            lambda: self.pending_events.append(CalibrationEvent.ABORT)
-        )
+        self.esc_shortcut.activated.connect(self._on_esc_pressed)
         self.esc_shortcut.setEnabled(False)
 
     def update_content(self, 
@@ -194,13 +192,20 @@ class CalibrationView(QWidget):
         events = self.pending_events.copy()
         self.pending_events.clear()
         return events
+    
+    def _on_esc_pressed(self):
+        if self.is_paused:
+            print("[CalibrationView] ESC pressed during pause - adding ABORT event")
+            self.pending_events.append(CalibrationEvent.ABORT)
 
     def showEvent(self, event):
         """Called by Qt when this view becomes visible. Enables the ESC shortcut."""
         super().showEvent(event)
         self.esc_shortcut.setEnabled(True)
+        print("[CalibrationView] ESC shortcut enabled")
 
     def hideEvent(self, event):
         """Called by Qt when this view is hidden. Disables the ESC shortcut to prevent it from firing in the background."""
         super().hideEvent(event)
         self.esc_shortcut.setEnabled(False)
+        print("[CalibrationView] ESC shortcut disabled")

@@ -28,7 +28,7 @@ class MainMenuView(QWidget):
         def on_experiment_click():
             mods = QApplication.keyboardModifiers()
             alt_pressed = bool(mods & Qt.KeyboardModifier.AltModifier)
-            print(f"[DEBUG] Experiment button clicked, Alt pressed: {alt_pressed}")
+            print(f"[MainMenuView] Experiment button clicked, Alt pressed: {alt_pressed}")
             self.pending_events.append((MainMenuEvent.EXPERIMENT_BTN_CLICKED, alt_pressed))
 
         self.experiment_btn = Button(
@@ -41,6 +41,7 @@ class MainMenuView(QWidget):
         def on_calibration_click():
             mods = QApplication.keyboardModifiers()
             alt_pressed = bool(mods & Qt.KeyboardModifier.AltModifier)
+            print(f"[MainMenuView] Calibration button clicked, Alt pressed: {alt_pressed}")
             self.pending_events.append((MainMenuEvent.CALIBRATION_BTN_CLICKED, alt_pressed))
 
         self.calibration_btn = Button(

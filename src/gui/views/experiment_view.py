@@ -60,7 +60,7 @@ class ExperimentView(QWidget):
             self._draw_header(painter, w)
 
         self._draw_step(painter, w, h)
-        
+
         self._draw_progress_bar(painter, w, h)
 
     def _draw_header(self, painter: QPainter, w: int):
@@ -123,17 +123,18 @@ class ExperimentView(QWidget):
         return events
 
     def _on_esc_pressed(self):
-        print("[DEBUG EXPERIMENT VIEW] ESC shortcut triggered - adding ABORT event")
-        self.pending_events.append(ExperimentEvent.ABORT)
+        if self.is_paused:
+            print("[ExperimentView] ESC pressed during pause - adding ABORT event")
+            self.pending_events.append(ExperimentEvent.ABORT)
 
     def showEvent(self, event):
         """Called by Qt when this view becomes visible. Enables the ESC shortcut."""
         super().showEvent(event)
         self.esc_shortcut.setEnabled(True)
-        print("[DEBUG EXPERIMENT VIEW] ESC shortcut enabled")
+        print("[ExperimentView] ESC shortcut enabled")
 
     def hideEvent(self, event):
         """Called by Qt when this view is hidden. Disables the ESC shortcut to prevent it from firing in the background."""
         super().hideEvent(event)
         self.esc_shortcut.setEnabled(False)
-        print("[DEBUG EXPERIMENT VIEW] ESC shortcut disabled")
+        print("[ExperimentView] ESC shortcut disabled")

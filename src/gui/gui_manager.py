@@ -101,6 +101,7 @@ class GUIManager:
     def show_experiment(self) -> None:
         self.current_view = self.experiment_view
         self.stacked_widget.setCurrentWidget(self.experiment_view)
+        self.sidebar.reset_pause()
         self.sidebar.set_buttons_visibility(show_pause=True, show_back=False)
 
     def update_experiment(self, 
@@ -119,6 +120,7 @@ class GUIManager:
     def show_calibration(self) -> None:
         self.current_view = self.calibration_view
         self.stacked_widget.setCurrentWidget(self.calibration_view)
+        self.sidebar.reset_pause()
         self.sidebar.set_buttons_visibility(show_pause=True)
 
     def update_calibration(self, 
