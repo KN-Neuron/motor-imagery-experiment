@@ -11,9 +11,6 @@ from . import FlowState
 if TYPE_CHECKING:
     from .main_menu_state import MainMenuState
 
-CUE_DURATION_MS = 4000
-RESULT_DURATION_MS = 2000
-
 _CLASSIFIABLE = [s for s in ExperimentStepType
                  if s not in (ExperimentStepType.FIXATION, ExperimentStepType.REST)]
 
@@ -32,6 +29,8 @@ class CalibrationState(FlowState):
         self.pause_elapsed_time: int = 0
         self.total_steps: int = 0
         self.completed_steps: int = 0
+        self.cue_duration_ms: int = 4000
+        self.result_duration_ms: int = 2000
 
     @override
     def enter(self):
@@ -44,9 +43,15 @@ class CalibrationState(FlowState):
             self.flow_controller.change_state(MainMenuState)
             return
 
+        self.cue_duration_ms = config.cue_ms
+        self.result_duration_ms = config.result_ms
+
         self.sample_manager = SampleManager(
             strategy=config.strategy,
-            trials_per_class=config.trials_per_class
+            trials_per_class=config.trials_per_class,
+            fixation_ms=config.fixation_ms,
+            cue_ms=config.cue_ms,
+            rest_ms=config.rest_ms,
         )
         self.total_steps = len(self.sample_manager.step_queue)
         self.completed_steps = 0
@@ -100,7 +105,7 @@ class CalibrationState(FlowState):
         is_classifiable = self.current_step.step_type in _CLASSIFIABLE
 
         if self.classified_as is None:
-            cue_duration = CUE_DURATION_MS if is_classifiable else self.current_step.duration_ms
+            cue_duration = self.cue_duration_ms if is_classifiable else self.current_step.duration_ms
             if elapsed >= cue_duration:
                 if is_classifiable:
                     # CUE phase done — classify and show result
@@ -114,7 +119,7 @@ class CalibrationState(FlowState):
                     self.step_start_time = QTime.currentTime()
         else:
             # RESULT phase — wait then move to next step
-            if elapsed >= RESULT_DURATION_MS:
+            if elapsed >= self.result_duration_ms:
                 self.completed_steps += 1
                 self.current_step = self.sample_manager.get_next()
                 self.classified_as = None
@@ -137,3 +142,5 @@ class CalibrationState(FlowState):
         self.pause_elapsed_time = 0
         self.total_steps = 0
         self.completed_steps = 0
+        self.cue_duration_ms = 4000
+        self.result_duration_ms = 2000

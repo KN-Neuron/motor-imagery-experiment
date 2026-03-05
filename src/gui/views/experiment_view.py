@@ -4,11 +4,11 @@ from PyQt6.QtGui import QPainter, QColor, QFont, QKeySequence, QShortcut
 from enum import Enum
 from src.sample_manager.experiment_step_type import ExperimentStepType
 
- 
+
 class ExperimentEvent(Enum):
     ABORT = "abort"
-    QUIT = "quit"
     PAUSE = "pause"
+    QUIT = "quit"
 
 STEP_DISPLAY = {
     ExperimentStepType.FIXATION:      (QColor(200, 200, 200), "FIXATION"),

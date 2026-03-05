@@ -30,10 +30,18 @@ class ExperimentState(FlowState):
         """Initialize experiment with SampleManager."""
         self.no_eeg_mode = not self.eeg_headset.connected
 
-        # Hardcoded strategy for now
+        config = self.gui_manager.show_experiment_config_dialog()
+        if config is None:
+            from .main_menu_state import MainMenuState
+            self.flow_controller.change_state(MainMenuState)
+            return
+
         self.sample_manager = SampleManager(
-            strategy="stratified",
-            trials_per_class=5
+            strategy=config.strategy,
+            trials_per_class=config.trials_per_class,
+            fixation_ms=config.fixation_ms,
+            cue_ms=config.cue_ms,
+            rest_ms=config.rest_ms,
         )
 
         self.total_steps = len(self.sample_manager.step_queue)
@@ -44,8 +52,7 @@ class ExperimentState(FlowState):
 
         self.gui_manager.show_experiment()
 
-        print(f"Experiment started (no_eeg_mode={self.no_eeg_mode})")
-        print(f"Total steps: {self.total_steps}")
+        print(f"Experiment started — {self.total_steps} steps, {config.trials_per_class} trials/class, strategy={config.strategy}, no_eeg_mode={self.no_eeg_mode}")
         if self.current_step:
             print(f"First step: {self.current_step.step_type.value} for {self.current_step.duration_ms}ms")
 

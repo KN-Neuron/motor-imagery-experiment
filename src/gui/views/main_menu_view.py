@@ -1,8 +1,7 @@
 from enum import Enum
-from PyQt6.QtWidgets import QWidget, QPushButton, QLabel
+from PyQt6.QtWidgets import QWidget, QApplication
 from PyQt6.QtCore import Qt, QRect
-from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont, QKeySequence, QShortcut
 from ..shared.button import Button
 import os
 
@@ -24,6 +23,10 @@ class MainMenuView(QWidget):
 
     def _setup_ui(self):
         self.setStyleSheet("background-color: rgb(30, 30, 40);")
+
+        self.q_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Q), self)
+        self.q_shortcut.activated.connect(lambda: self.pending_events.append(MainMenuEvent.QUIT))
+        self.q_shortcut.setEnabled(False)
 
         def on_experiment_click():
             mods = QApplication.keyboardModifiers()
@@ -135,6 +138,10 @@ class MainMenuView(QWidget):
         self.pending_events.clear()
         return events
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key.Key_Q:
-            self.pending_events.append(MainMenuEvent.QUIT)
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.q_shortcut.setEnabled(True)
+
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        self.q_shortcut.setEnabled(False)

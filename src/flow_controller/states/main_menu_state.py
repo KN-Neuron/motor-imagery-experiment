@@ -10,9 +10,6 @@ from . import FlowState
 class MainMenuState(FlowState):
     """Handles main menu interactions."""
 
-    def __init__(self, flow_controller):
-        super().__init__(flow_controller)
-
     @override
     def enter(self):
         self.gui_manager.show_main_menu()
@@ -55,7 +52,3 @@ class MainMenuState(FlowState):
 
             elif event == MainMenuEvent.QUIT:
                 self.flow_controller.running = False
-
-    @override
-    def exit(self):
-        pass

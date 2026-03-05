@@ -5,7 +5,11 @@ from .views.main_menu_view import MainMenuView, MainMenuEvent
 from .views.experiment_view import ExperimentView, ExperimentEvent
 from .views.calibration_view import CalibrationView, CalibrationEvent
 from .shared.sidebar import Sidebar
-from .shared.config_dialog import CalibrationConfigDialog, CalibrationConfig
+from .shared.config_dialog import CalibrationConfigDialog, ExperimentConfigDialog
+from src.config.config import (
+    CalibrationConfig, ExperimentConfig,
+    load_calibration_config, load_experiment_config,
+)
 
 
 class GUIManager:
@@ -136,6 +140,13 @@ class GUIManager:
         return self.calibration_view.get_pending_events()
 
     def show_calibration_config_dialog(self) -> CalibrationConfig | None:
-        dialog = CalibrationConfigDialog(self.window)
+        initial = load_calibration_config()
+        dialog = CalibrationConfigDialog(initial=initial, parent=self.window)
+        dialog.exec()
+        return dialog.get_config()
+
+    def show_experiment_config_dialog(self) -> ExperimentConfig | None:
+        initial = load_experiment_config()
+        dialog = ExperimentConfigDialog(initial=initial, parent=self.window)
         dialog.exec()
         return dialog.get_config()

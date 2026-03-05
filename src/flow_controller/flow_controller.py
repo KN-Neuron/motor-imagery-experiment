@@ -38,9 +38,9 @@ class FlowController:
         self.gui_manager.initialize()
 
         if self.eeg_headset.connect():
-            print("Connected to EEG headset")
+            print("[FlowController] Connected to EEG headset")
         else:
-            print("Warning: Could not connect to EEG headset")
+            print("[FlowController] Warning: Could not connect to EEG headset")
 
         self.change_state(MainMenuState)
 
@@ -48,7 +48,7 @@ class FlowController:
             QApplication.instance().exec()
 
         except Exception as e:
-            print(f"\nUnhandled exception occurred: {e}")
+            print(f"[FlowController] Unhandled exception occurred: {e}")
 
         finally:
             self.shutdown()

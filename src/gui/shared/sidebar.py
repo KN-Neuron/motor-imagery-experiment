@@ -88,7 +88,6 @@ class Sidebar(QWidget):
 
     fullscreen_toggled = pyqtSignal()
     pause_toggled = pyqtSignal()
-    back_requested = pyqtSignal()
     quit_requested = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -183,10 +182,3 @@ class Sidebar(QWidget):
         self.is_fullscreen = is_fullscreen
         self.fullscreen_btn.set_active(is_fullscreen)
         self.fullscreen_btn.set_icon("▣" if is_fullscreen else "▢")
-
-    def reset_pause(self):
-        self.is_paused = False
-        self.pause_btn.set_active(False)
-        self.pause_btn.set_icon("⏸")
-        self.pause_btn.set_label("PAUSE")
-        self.pause_btn.setToolTip("Pause")
