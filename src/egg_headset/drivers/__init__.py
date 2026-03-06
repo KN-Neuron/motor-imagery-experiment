@@ -1,8 +1,8 @@
 from typing import Protocol
 import numpy as np
 
-from egg_headset.drivers.brainaccess import BrainAccessDriver
-from egg_headset.drivers.mock import MockDriver
+from .brainaccess import BrainAccessDriver
+from .mock import MockDriver
 
 
 class HeadsetDriver(Protocol):
@@ -16,6 +16,11 @@ class HeadsetDriver(Protocol):
     @property
     def channel_count(self) -> int:
         """Number of EEG channels."""
+        ...
+
+    @property
+    def is_connected(self) -> bool:
+        """Whether the headset is currently connected."""
         ...
 
     def connect(self) -> None:

@@ -1,7 +1,7 @@
 import numpy as np
 from brainaccess.utils import acquisition
 
-from egg_headset.model import HeadsetConfiguration
+from ..model import HeadsetConfiguration
 from brainaccess.core.eeg_manager import EEGManager
 
 
@@ -32,6 +32,10 @@ class BrainAccessDriver:
     @property
     def channel_count(self) -> int:
         return self._config.n_channels
+    
+    @property
+    def is_connected(self) -> bool:
+        return self._is_connected
 
     def connect(self) -> None:
         if self._is_connected:

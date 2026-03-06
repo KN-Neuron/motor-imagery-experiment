@@ -64,7 +64,7 @@ class FlowController:
 
     def shutdown(self):
         """Disconnect headset and exit the process."""
-        if self.eeg_headset.connected:
+        if self.eeg_headset.is_connected():
             self.eeg_headset.disconnect()
 
         sys.exit(0)

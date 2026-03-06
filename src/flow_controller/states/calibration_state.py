@@ -34,7 +34,7 @@ class CalibrationState(FlowState):
 
     @override
     def enter(self):
-        self.no_eeg_mode = not self.eeg_headset.connected
+        self.no_eeg_mode = not self.eeg_headset.is_connected()
 
         config = self.gui_manager.show_calibration_config_dialog()
         if config is None:

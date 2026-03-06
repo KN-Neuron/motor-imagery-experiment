@@ -28,7 +28,7 @@ class ExperimentState(FlowState):
     @override
     def enter(self):
         """Initialize experiment with SampleManager."""
-        self.no_eeg_mode = not self.eeg_headset.connected
+        self.no_eeg_mode = not self.eeg_headset.is_connected()
 
         config = self.gui_manager.show_experiment_config_dialog()
         if config is None:

@@ -16,7 +16,7 @@ class MainMenuState(FlowState):
 
     @override
     def tick(self):
-        headset_connected = self.eeg_headset.connected
+        headset_connected = self.eeg_headset.is_connected()
 
         self.gui_manager.update_main_menu(headset_connected)
 
@@ -27,7 +27,7 @@ class MainMenuState(FlowState):
             if isinstance(event, tuple) and event[0] == MainMenuEvent.EXPERIMENT_BTN_CLICKED:
                 alt_pressed = event[1]
                 if alt_pressed:
-                    print(f"Starting Experiment State (no_eeg_mode={not self.eeg_headset.connected})")
+                    print(f"Starting Experiment State (no_eeg_mode={not self.eeg_headset.is_connected()})")
                     self.flow_controller.change_state(ExperimentState)
                     return  # Exit to avoid further processing after state change
                 elif headset_connected:
@@ -40,7 +40,7 @@ class MainMenuState(FlowState):
             elif isinstance(event, tuple) and event[0] == MainMenuEvent.CALIBRATION_BTN_CLICKED:
                 alt_pressed = event[1]
                 if alt_pressed:
-                    print(f"Starting Calibration State (no_eeg_mode={not self.eeg_headset.connected})")
+                    print(f"Starting Calibration State (no_eeg_mode={not self.eeg_headset.is_connected()})")
                     self.flow_controller.change_state(CalibrationState)
                     return
                 elif headset_connected:
