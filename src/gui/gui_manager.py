@@ -39,7 +39,6 @@ class GUIManager:
         self.window.setWindowTitle("Hex-O-Spell Experiment")
         self.window.setMinimumSize(self.min_width, self.min_height)
         self.window.resize(self.width, self.height)
-
         container = QWidget()
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
