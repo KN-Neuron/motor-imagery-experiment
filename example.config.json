@@ -1,0 +1,17 @@
+{
+    "calibration": {
+        "trials_per_class": 3,
+        "strategy": "stratified",
+        "fixation_ms": 2000,
+        "cue_ms": 4000,
+        "rest_ms": 1500,
+        "result_ms": 2000
+    },
+    "experiment": {
+        "trials_per_class": 5,
+        "strategy": "stratified",
+        "fixation_ms": 2000,
+        "cue_ms": 4000,
+        "rest_ms": 1500
+    }
+}

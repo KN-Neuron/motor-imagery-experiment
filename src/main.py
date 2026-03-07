@@ -3,18 +3,20 @@ import sys
 
 from src.gui import GUIManager
 from src.egg_headset import EggHeadset
+from src.egg_headset.drivers import MockDriver
 from src.flow_controller import FlowController
 
 
 def main() -> None:
-    app = QApplication(sys.argv)
-    
+    app = QApplication(sys.argv) # QApplication is saved as variable to prevent garbage collection clearing it out
+
     gui_manager = GUIManager()
-    headset = EggHeadset()
+    
+    driver = MockDriver()
+    headset = EggHeadset(driver)
 
     flow_controller = FlowController(gui_manager, headset)
     flow_controller.start()
-
 
 if __name__ == "__main__":
     main()

@@ -1,8 +1,8 @@
 from typing import Callable, List
 import numpy as np
 from typing import Optional
-from egg_headset.drivers import HeadsetDriver
-from egg_headset.ring_buffer import RingBuffer
+from .drivers import HeadsetDriver
+from .ring_buffer import RingBuffer
 
 EegSubscriberCallback = Callable[[np.ndarray], None]
 
@@ -23,6 +23,9 @@ class EggHeadset:
         )
         self._subscribers: List[EegSubscriberCallback] = []
         self._last_annotation_index: Optional[int] = None
+
+    def is_connected(self) -> bool:
+        return self._driver.is_connected
 
     def connect(self) -> None:
         self._driver.connect()

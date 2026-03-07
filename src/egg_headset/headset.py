@@ -2,8 +2,8 @@ import threading
 import time
 
 from numpy import ndarray
-from egg_headset.drivers import MockDriver
-from egg_headset.model import HeadsetConfiguration, HeadsetModel
+from .drivers import MockDriver
+from .model import HeadsetConfiguration, HeadsetModel
 from . import EggHeadset
 import numpy as np
 

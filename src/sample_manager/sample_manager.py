@@ -16,8 +16,11 @@ class SampleManager:
         self,
         strategy: str = "stratified",
         trials_per_class: int = 5,
+        fixation_ms: int = 2000,
+        cue_ms: int = 4000,
+        rest_ms: int = 1500,
     ) -> None:
-        self.durations = {"fixation": 2000, "cue": 4000, "rest": 1500}
+        self.durations = {"fixation": fixation_ms, "cue": cue_ms, "rest": rest_ms}
 
         excluded_steps = (
             ExperimentStepType.FIXATION,
@@ -57,6 +60,3 @@ class SampleManager:
         if self.step_queue:
             return self.step_queue.popleft()
         return None
-
-    def run_trial(self) -> None:
-        pass

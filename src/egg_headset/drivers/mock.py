@@ -1,7 +1,7 @@
 import time
 import numpy as np
 
-from egg_headset.model import HeadsetConfiguration
+from ..model import HeadsetConfiguration
 
 
 class MockDriver:
@@ -38,6 +38,10 @@ class MockDriver:
     @property
     def channel_count(self) -> int:
         return self._channel_count
+    
+    @property
+    def is_connected(self) -> bool:
+        return self._is_connected
 
     def connect(self) -> None:
         if not self._is_connected:

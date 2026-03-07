@@ -1,16 +1,25 @@
-from PyQt6.QtWidgets import QWidget, QPushButton, QLabel
-from PyQt6.QtCore import Qt, QRect
+from PyQt6.QtWidgets import QWidget
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPainter, QColor, QFont, QKeySequence, QShortcut
 from enum import Enum
 from src.sample_manager.experiment_step_type import ExperimentStepType
 
 
 class ExperimentEvent(Enum):
-    TOGGLE_FULLSCREEN = "toggle_fullscreen"
     ABORT = "abort"
-    QUIT = "quit"
     PAUSE = "pause"
+    QUIT = "quit"
 
+STEP_DISPLAY = {
+    ExperimentStepType.FIXATION:      (QColor(200, 200, 200), "FIXATION"),
+    ExperimentStepType.REST:          (QColor(150, 150, 200), "REST"),
+    ExperimentStepType.DOUBLE_BLINK:  (QColor(100, 200, 255), "DOUBLE BLINK"),
+    ExperimentStepType.LEFT_HAND:     (QColor(255, 150, 150), "LEFT HAND CLENCH"),
+    ExperimentStepType.RIGHT_HAND:    (QColor(150, 255, 150), "RIGHT HAND CLENCH"),
+    ExperimentStepType.JAW_CLENCH:    (QColor(255, 200, 100), "JAW CLENCH"),
+    ExperimentStepType.HEAD_MOVEMENT: (QColor(200, 150, 255), "HEAD MOVEMENT"),
+    ExperimentStepType.SSVEP_FOCUS:   (QColor(255, 255, 150), "SSVEP FOCUS"),
+}
 
 class ExperimentView(QWidget):
     def __init__(self) -> None:
@@ -18,122 +27,114 @@ class ExperimentView(QWidget):
         self.pending_events = []
         self.step_type = None
         self.no_eeg_mode = False
-        self.is_fullscreen = False
-        self.is_frameless = False
+        self.is_paused = False
         self.progress_percent = 0.0
-        
+
         self._setup_ui()
-    
+
     def _setup_ui(self):
-        """Setup the UI components"""
-        # Set background color - deep purple
         self.setStyleSheet("background-color: rgb(25, 15, 40);")
-        
-        # Setup ESC shortcut (will be activated when view is shown)
+
+        # ESC shortcut is enabled/disabled via showEvent/hideEvent
         self.esc_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
         self.esc_shortcut.activated.connect(self._on_esc_pressed)
-        self.esc_shortcut.setEnabled(False)  # Disabled by default    
+        self.esc_shortcut.setEnabled(False)
 
-    def update_content(self, step_type, no_eeg_mode, is_fullscreen, is_frameless, progress_percent):
-        """Update the view content"""
+    def update_content(self, step_type, no_eeg_mode, is_paused, progress_percent):
         self.step_type = step_type
         self.no_eeg_mode = no_eeg_mode
-        self.is_fullscreen = is_fullscreen
-        self.is_frameless = is_frameless
+        self.is_paused = is_paused
         self.progress_percent = progress_percent
-        
-        # Trigger repaint
         self.update()
-    
+
     def paintEvent(self, event):
-        """Custom paint for experiment content"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        width = self.width()
-        height = self.height()
-        
-        # Draw NO EEG MODE label
-        if self.no_eeg_mode:
-            mode_font = QFont('Arial', 16)
-            painter.setFont(mode_font)
-            painter.setPen(QColor(180, 100, 100))
-            mode_text = "NO EEG MODE"
-            mode_metrics = painter.fontMetrics()
-            mode_width = mode_metrics.horizontalAdvance(mode_text)
-            mode_x = width - mode_width - 15
-            mode_y = 15 + mode_metrics.ascent()
-            painter.drawText(mode_x, mode_y, mode_text)
-        
-        # Draw progress bar at bottom
-        bar_height = 8
-        bar_y = height - bar_height
-        bar_width = width
-        
-        # Background (darker)
-        painter.fillRect(0, bar_y, bar_width, bar_height, QColor(40, 40, 60))
-        
-        # Progress fill (blue)
-        if self.progress_percent > 0:
-            fill_width = int(bar_width * self.progress_percent)
-            painter.fillRect(0, bar_y, fill_width, bar_height, QColor(80, 120, 200))
-        
-        # Draw step info
-        if self.step_type:
-            # Map step types to display text and colors
-            step_colors = {
-                ExperimentStepType.FIXATION: (QColor(200, 200, 200), "FIXATION"),
-                ExperimentStepType.REST: (QColor(150, 150, 200), "REST"),
-                ExperimentStepType.DOUBLE_BLINK: (QColor(100, 200, 255), "DOUBLE BLINK"),
-                ExperimentStepType.LEFT_HAND: (QColor(255, 150, 150), "LEFT HAND CLENCH"),
-                ExperimentStepType.RIGHT_HAND: (QColor(150, 255, 150), "RIGHT HAND CLENCH"),
-                ExperimentStepType.JAW_CLENCH: (QColor(255, 200, 100), "JAW CLENCH"),
-                ExperimentStepType.HEAD_MOVEMENT: (QColor(200, 150, 255), "HEAD MOVEMENT"),
-                ExperimentStepType.SSVEP_FOCUS: (QColor(255, 255, 150), "SSVEP FOCUS"),
-            }
-            
-            color, text = step_colors.get(self.step_type, (QColor(255, 255, 255), self.step_type.value.upper()))
-            
-            # Draw step title
-            title_font = QFont('Arial', 48, QFont.Weight.Bold)
-            painter.setFont(title_font)
+
+        w, h = self.width(), self.height()
+
+        if self.no_eeg_mode and self.is_paused:
+            self._draw_no_eeg_indicator(painter, w)
+
+        if self.is_paused:
+            self._draw_header(painter, w)
+
+        self._draw_step(painter, w, h)
+
+        self._draw_progress_bar(painter, w, h)
+
+    def _draw_header(self, painter: QPainter, w: int):
+        header_font = QFont('Arial', 18)
+        painter.setFont(header_font)
+        painter.setPen(QColor(100, 100, 140))
+        header = "EXPERIMENT"
+        header_w = painter.fontMetrics().horizontalAdvance(header)
+        painter.drawText((w - header_w) // 2, 15 + painter.fontMetrics().ascent(), header)
+
+    def _draw_no_eeg_indicator(self, painter: QPainter, w: int):
+        mode_font = QFont('Arial', 16)
+        painter.setFont(mode_font)
+        painter.setPen(QColor(180, 100, 100))
+        mode_text = "NO EEG MODE"
+        mode_w = painter.fontMetrics().horizontalAdvance(mode_text)
+        painter.drawText(w - mode_w - 15, 15 + painter.fontMetrics().ascent(), mode_text)
+
+    def _draw_step(self, painter: QPainter, w: int, h: int):
+        if not self.step_type:
+            return
+
+        if self.step_type == ExperimentStepType.FIXATION:
+            self._draw_fixation_cross(painter, w, h)
+        else:
+            color, text = STEP_DISPLAY.get(self.step_type, (QColor(255, 255, 255), self.step_type.value.upper()))
+            step_font = QFont('Arial', 48, QFont.Weight.Bold)
+            painter.setFont(step_font)
             painter.setPen(color)
-            title_metrics = painter.fontMetrics()
-            title_width = title_metrics.horizontalAdvance(text)
-            title_x = (width - title_width) // 2
-            title_y = int(height * 0.4) + title_metrics.ascent()
-            painter.drawText(title_x, title_y, text)
-            
-            # Show ESC hint
+            step_w = painter.fontMetrics().horizontalAdvance(text)
+            painter.drawText((w - step_w) // 2, int(h * 0.4) + painter.fontMetrics().ascent(), text)
+
+        if self.is_paused:
             hint_font = QFont('Arial', 18)
             painter.setFont(hint_font)
             painter.setPen(QColor(150, 150, 150))
-            hint_text = "Press ESC to abort experiment"
-            hint_metrics = painter.fontMetrics()
-            hint_width = hint_metrics.horizontalAdvance(hint_text)
-            hint_x = (width - hint_width) // 2
-            hint_y = int(height * 0.92) + hint_metrics.ascent()
-            painter.drawText(hint_x, hint_y, hint_text)
-    
+            hint = "Press ESC to abort experiment"
+            hint_w = painter.fontMetrics().horizontalAdvance(hint)
+            painter.drawText((w - hint_w) // 2, int(h * 0.92) + painter.fontMetrics().ascent(), hint)
+
+    def _draw_fixation_cross(self, painter: QPainter, w: int, h: int):
+        cx, cy = w // 2, int(h * 0.4) + 24
+        arm, thick = 45, 6
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(200, 200, 200))
+        painter.drawRect(cx - arm, cy - thick // 2, arm * 2, thick)
+        painter.drawRect(cx - thick // 2, cy - arm, thick, arm * 2)
+
+    def _draw_progress_bar(self, painter: QPainter, w: int, h: int):
+        bar_h = 8
+        bar_y = h - bar_h
+        painter.fillRect(0, bar_y, w, bar_h, QColor(40, 40, 60))
+        if self.progress_percent > 0:
+            fill_w = int(w * self.progress_percent)
+            painter.fillRect(0, bar_y, fill_w, bar_h, QColor(80, 120, 200))
+
     def get_pending_events(self) -> list[ExperimentEvent]:
-        """Get and clear pending events"""
         events = self.pending_events.copy()
         self.pending_events.clear()
         return events
-    
+
     def _on_esc_pressed(self):
-        """Handle ESC shortcut"""
-        print("[DEBUG EXPERIMENT VIEW] ESC shortcut triggered - adding ABORT event")
-        self.pending_events.append(ExperimentEvent.ABORT)
-    
+        if self.is_paused:
+            print("[ExperimentView] ESC pressed during pause - adding ABORT event")
+            self.pending_events.append(ExperimentEvent.ABORT)
+
     def showEvent(self, event):
-        """Enable ESC shortcut when view is shown"""
+        """Called by Qt when this view becomes visible. Enables the ESC shortcut."""
         super().showEvent(event)
         self.esc_shortcut.setEnabled(True)
-        print("[DEBUG EXPERIMENT VIEW] ESC shortcut enabled")
-    
+        print("[ExperimentView] ESC shortcut enabled")
+
     def hideEvent(self, event):
-        """Disable ESC shortcut when view is hidden"""
+        """Called by Qt when this view is hidden. Disables the ESC shortcut to prevent it from firing in the background."""
         super().hideEvent(event)
         self.esc_shortcut.setEnabled(False)
-        print("[DEBUG EXPERIMENT VIEW] ESC shortcut disabled")
+        print("[ExperimentView] ESC shortcut disabled")
