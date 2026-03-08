@@ -3,6 +3,7 @@ import numpy as np
 
 from egg_headset.drivers.brainaccess import BrainAccessDriver
 from egg_headset.drivers.mock import MockDriver
+from egg_headset.drivers.playback import PlaybackDriver
 
 
 class HeadsetDriver(Protocol):
@@ -72,4 +73,4 @@ class HeadsetDriver(Protocol):
         ...
 
 
-__all__ = ["BrainAccessDriver", "MockDriver", "HeadsetDriver"]
+__all__ = ["BrainAccessDriver", "MockDriver", "HeadsetDriver", "PlaybackDriver"]
