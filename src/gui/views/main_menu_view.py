@@ -111,6 +111,7 @@ class MainMenuView(QWidget):
             painter.drawText(logo_x + 40 + 10, logo_y + 8 + kn_metrics.ascent(), kn_text)
         except Exception:
             pass
+        
         # Draw headset status
         status_font = QFont('Arial', 28)
         painter.setFont(status_font)

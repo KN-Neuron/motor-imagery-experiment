@@ -37,7 +37,8 @@ class FlowController:
         """Initialize GUI, connect headset and run the Qt event loop."""
         self.gui_manager.initialize()
 
-        if self.eeg_headset.connect():
+        self.eeg_headset.connect()
+        if self.eeg_headset.is_connected():
             print("[FlowController] Connected to EEG headset")
         else:
             print("[FlowController] Warning: Could not connect to EEG headset")
@@ -59,6 +60,10 @@ class FlowController:
             self.timer.stop()
             QApplication.instance().quit()
             return
+
+        # Poll headset data if connected, then call current state tick
+        if self.eeg_headset.is_connected() and self.eeg_headset.is_streaming():
+            self.eeg_headset.poll()
 
         self.state.tick()
 

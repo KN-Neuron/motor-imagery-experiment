@@ -20,7 +20,7 @@ class MainMenuState(FlowState):
 
         self.gui_manager.update_main_menu(headset_connected)
 
-        events = self.gui_manager.process_main_menu_events()
+        events = self.gui_manager.get_main_menu_events()
 
         for event in events:
             # Handle experiment button (can be tuple with alt state or just enum)

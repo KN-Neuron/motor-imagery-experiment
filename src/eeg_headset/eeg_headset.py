@@ -7,7 +7,7 @@ from .ring_buffer import RingBuffer
 EegSubscriberCallback = Callable[[np.ndarray], None]
 
 
-class EggHeadset:
+class EEGHeadset:
     """
     Interfejs do opaski EEG.
     Umożliwia połączenie z opaską, rozpoczęcie i zatrzymanie strumienia danych,
@@ -26,6 +26,9 @@ class EggHeadset:
 
     def is_connected(self) -> bool:
         return self._driver.is_connected
+    
+    def is_streaming(self) -> bool:
+        return self._driver.is_streaming
 
     def connect(self) -> None:
         self._driver.connect()

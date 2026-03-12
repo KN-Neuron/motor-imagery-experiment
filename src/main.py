@@ -2,8 +2,8 @@ from PyQt6.QtWidgets import QApplication
 import sys
 
 from src.gui import GUIManager
-from src.egg_headset import EggHeadset
-from src.egg_headset.drivers import MockDriver
+from src.eeg_headset.eeg_headset import EEGHeadset
+from src.eeg_headset.drivers import MockDriver
 from src.flow_controller import FlowController
 
 
@@ -13,7 +13,7 @@ def main() -> None:
     gui_manager = GUIManager()
     
     driver = MockDriver()
-    headset = EggHeadset(driver)
+    headset = EEGHeadset(driver)
 
     flow_controller = FlowController(gui_manager, headset)
     flow_controller.start()

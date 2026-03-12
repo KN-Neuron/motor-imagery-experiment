@@ -5,6 +5,7 @@ from PyQt6.QtCore import QTime
 from src.sample_manager.sample_manager import SampleManager, ExperimentStep
 from src.sample_manager.experiment_step_type import ExperimentStepType
 from src.gui.views.calibration_view import CalibrationEvent
+from src.flow_controller.session_saver.session_saver import SessionSaver
 
 from . import FlowState
 
@@ -31,6 +32,7 @@ class CalibrationState(FlowState):
         self.completed_steps: int = 0
         self.cue_duration_ms: int = 4000
         self.result_duration_ms: int = 2000
+        self.session_saver: SessionSaver = None
 
     @override
     def enter(self):
@@ -57,17 +59,30 @@ class CalibrationState(FlowState):
         self.completed_steps = 0
         self.classified_as = None
 
+        if not self.no_eeg_mode:
+            self.session_saver = SessionSaver(session_type="calibration")
+            try:
+                self.eeg_headset.start()
+            except Exception as e:
+                print(f"[CalibrationState] Error starting EEG headset: {e}")
+                self.flow_controller.change_state(MainMenuState)
+                return
+
         self.current_step = self.sample_manager.get_next()
         self.step_start_time = QTime.currentTime()
 
+        # Annotate first step if it is classifiable (it is not but just in case the strategy changes)
+        if self.current_step and self.current_step.step_type in _CLASSIFIABLE:
+            self.eeg_headset.annotate(self.current_step.step_type.value)
+
         self.gui_manager.show_calibration()
         self.gui_manager.update_calibration(self.current_step.step_type, None, 0.0, self.no_eeg_mode)
-        print(f"Calibration started — {self.total_steps} steps, {config.trials_per_class} trials/class, strategy={config.strategy}, no_eeg_mode={self.no_eeg_mode}")
+        print(f"[CalibrationState] Calibration started — {self.total_steps} steps, {config.trials_per_class} trials/class, strategy={config.strategy}, no_eeg_mode={self.no_eeg_mode}")
 
     @override
     def tick(self):
         if not self.current_step:
-            print("Calibration completed!")
+            print("[CalibrationState] Calibration completed!")
             # Import here to avoid circular import
             from .main_menu_state import MainMenuState
             self.flow_controller.change_state(MainMenuState)
@@ -83,10 +98,10 @@ class CalibrationState(FlowState):
             progress_percent,
         )
 
-        events = self.gui_manager.process_calibration_events()
+        events = self.gui_manager.get_calibration_events()
         for event in events:
             if event == CalibrationEvent.ABORT:
-                print("Calibration aborted")
+                print("[CalibrationState] Calibration aborted")
                 # Import here to avoid circular import
                 from .main_menu_state import MainMenuState
                 self.flow_controller.change_state(MainMenuState)
@@ -102,21 +117,26 @@ class CalibrationState(FlowState):
             return
 
         elapsed = self.step_start_time.msecsTo(QTime.currentTime())
-        is_classifiable = self.current_step.step_type in _CLASSIFIABLE
 
         if self.classified_as is None:
-            cue_duration = self.cue_duration_ms if is_classifiable else self.current_step.duration_ms
+            # CUE/FIXATION/REST phase — wait then classify (if classifiable) and move to RESULT
+            cue_duration = self.cue_duration_ms \
+                if self.current_step.step_type in _CLASSIFIABLE \
+                else self.current_step.duration_ms
+            
             if elapsed >= cue_duration:
-                if is_classifiable:
+                if self.current_step.step_type in _CLASSIFIABLE:
                     # CUE phase done — classify and show result
                     self.classified_as = self._classify()
                     self.step_start_time = QTime.currentTime()
-                    print(f"Classified: {self.classified_as.value}")
+                    print(f"[CalibrationState] Classified: {self.classified_as.value}")
                 else:
                     # FIXATION/REST — no classification, move directly to next step
                     self.completed_steps += 1
                     self.current_step = self.sample_manager.get_next()
                     self.step_start_time = QTime.currentTime()
+                    if self.current_step and self.current_step.step_type in _CLASSIFIABLE:
+                        self.eeg_headset.annotate(self.current_step.step_type.value)
         else:
             # RESULT phase — wait then move to next step
             if elapsed >= self.result_duration_ms:
@@ -124,13 +144,17 @@ class CalibrationState(FlowState):
                 self.current_step = self.sample_manager.get_next()
                 self.classified_as = None
                 self.step_start_time = QTime.currentTime()
+                if self.current_step and self.current_step.step_type in _CLASSIFIABLE:
+                    self.eeg_headset.annotate(self.current_step.step_type.value)
 
     def _classify(self) -> ExperimentStepType:
         if self.no_eeg_mode:
             return random.choice(_CLASSIFIABLE)
-        else:
-            # Placeholder for actual classification logic. For now, just return the correct class or a random one if in no-EEG mode.
-            return self.current_step.step_type
+
+        eeg_data = self.eeg_headset.get_output(seconds=self.cue_duration_ms // 1000)
+        self.session_saver.save_trial(eeg_data, self.current_step.step_type.value)
+        # TODO: pass eeg_data to actual classifier
+        return self.current_step.step_type
 
     @override
     def exit(self):
@@ -144,3 +168,12 @@ class CalibrationState(FlowState):
         self.completed_steps = 0
         self.cue_duration_ms = 4000
         self.result_duration_ms = 2000
+        self.session_saver = None
+
+        if not self.no_eeg_mode:
+            try:
+                self.eeg_headset.stop()
+            except Exception as e:
+                print(f"[CalibrationState] Error stopping EEG headset: {e}")
+
+        print("[CalibrationState] Calibration state exited")

@@ -35,3 +35,6 @@ Thumbs.db
 
 # Config file
 config.json
+
+# Session data
+sessions/*

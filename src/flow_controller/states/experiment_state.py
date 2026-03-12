@@ -4,11 +4,15 @@ from PyQt6.QtCore import QTime
 from src.sample_manager.sample_manager import SampleManager, ExperimentStep
 from src.sample_manager.experiment_step_type import ExperimentStepType
 from src.gui.gui_manager import ExperimentEvent
+from src.flow_controller.session_saver.session_saver import SessionSaver
 
 from . import FlowState
 
 if TYPE_CHECKING:
     from .main_menu_state import MainMenuState
+
+_CLASSIFIABLE = {s for s in ExperimentStepType
+                 if s not in (ExperimentStepType.FIXATION, ExperimentStepType.REST)}
 
 
 class ExperimentState(FlowState):
@@ -24,6 +28,7 @@ class ExperimentState(FlowState):
         self.completed_steps: int = 0
         self.is_paused: bool = False
         self.pause_elapsed_time: int = 0
+        self.session_saver: SessionSaver = None
 
     @override
     def enter(self):
@@ -47,20 +52,33 @@ class ExperimentState(FlowState):
         self.total_steps = len(self.sample_manager.step_queue)
         self.completed_steps = 0
 
+        if not self.no_eeg_mode:
+            self.session_saver = SessionSaver(session_type="experiment")
+            try:
+                self.eeg_headset.start()
+            except Exception as e:
+                print(f"[ExperimentState] Error starting EEG headset: {e}")
+                self.flow_controller.change_state(MainMenuState)
+                return
+
         self.current_step = self.sample_manager.get_next()
         self.step_start_time = QTime.currentTime()
 
+        # Annotate first step if it is classifiable (it is not but just in case the strategy changes)
+        if self.current_step and self.current_step.step_type in _CLASSIFIABLE:
+            self.eeg_headset.annotate(self.current_step.step_type.value)
+
         self.gui_manager.show_experiment()
 
-        print(f"Experiment started — {self.total_steps} steps, {config.trials_per_class} trials/class, strategy={config.strategy}, no_eeg_mode={self.no_eeg_mode}")
+        print(f"[ExperimentState]Experiment started — {self.total_steps} steps, {config.trials_per_class} trials/class, strategy={config.strategy}, no_eeg_mode={self.no_eeg_mode}")
         if self.current_step:
-            print(f"First step: {self.current_step.step_type.value} for {self.current_step.duration_ms}ms")
+            print(f"[ExperimentState] First step: {self.current_step.step_type.value} for {self.current_step.duration_ms}ms")
 
     @override
     def tick(self):
         """Handle experiment phase transitions."""
         if not self.current_step:
-            print("Experiment completed!")
+            print("[ExperimentState] Experiment completed!")
             # Import here to avoid circular import
             from .main_menu_state import MainMenuState
             self.flow_controller.change_state(MainMenuState)
@@ -75,18 +93,18 @@ class ExperimentState(FlowState):
             progress_percent
         )
 
-        events = self.gui_manager.process_experiment_events()
+        events = self.gui_manager.get_experiment_events()
 
         for event in events:
             if event == ExperimentEvent.ABORT:
-                print("Experiment aborted by user (ESC)")
+                print("[ExperimentState] Experiment aborted by user (ESC)")
                 # Import here to avoid circular import
                 from .main_menu_state import MainMenuState
                 self.flow_controller.change_state(MainMenuState)
                 return
             
             elif event == ExperimentEvent.QUIT:
-                print("Quit requested")
+                print("[ExperimentState] Quit requested")
                 self.flow_controller.running = False
                 return
             
@@ -108,12 +126,20 @@ class ExperimentState(FlowState):
         elapsed = self.step_start_time.msecsTo(current_time)
 
         if elapsed >= self.current_step.duration_ms:
+            if not self.no_eeg_mode and self.current_step.step_type in _CLASSIFIABLE:
+                eeg_data = self.eeg_headset.get_output(seconds=self.current_step.duration_ms // 1000)
+                self.session_saver.save_trial(eeg_data, self.current_step.step_type.value)
+
             self.completed_steps += 1
             self.current_step = self.sample_manager.get_next()
             self.step_start_time = current_time
 
+            # Annotate next step if it is classifiable
+            if self.current_step and self.current_step.step_type in _CLASSIFIABLE:
+                self.eeg_headset.annotate(self.current_step.step_type.value)
+
             if self.current_step:
-                print(f"Next step: {self.current_step.step_type.value} for {self.current_step.duration_ms}ms (Progress: {self.completed_steps}/{self.total_steps})")
+                print(f"[ExperimentState] Next step: {self.current_step.step_type.value} for {self.current_step.duration_ms}ms (Progress: {self.completed_steps}/{self.total_steps})")
 
     @override
     def exit(self):
@@ -122,4 +148,10 @@ class ExperimentState(FlowState):
         self.current_step = None
         self.total_steps = 0
         self.completed_steps = 0
-        print("Experiment state exited")
+        self.session_saver = None
+        if not self.no_eeg_mode:
+            try:
+                self.eeg_headset.stop()
+            except Exception as e:
+                print(f"[ExperimentState] Error stopping EEG headset: {e}")
+        print("[ExperimentState] Experiment state exited")

@@ -171,7 +171,7 @@ class CalibrationView(QWidget):
         draw_row(row1_y, "Prompted:", prompted_label, prompted_color)
         draw_row(row2_y, "Classified:", classified_label, classified_color)
 
-        # ✓ / ✗ indicator
+        # Valid ✓ / Invalid ✗ indicator
         indicator_font = QFont("Segoe UI Symbol", 48, QFont.Weight.Bold)
         painter.setFont(indicator_font)
         indicator_color = QColor(60, 210, 100) if correct else QColor(220, 70, 70)

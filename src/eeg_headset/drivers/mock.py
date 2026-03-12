@@ -1,7 +1,7 @@
 import time
 import numpy as np
 
-from ..model import HeadsetConfiguration
+from ..headset_config import HeadsetConfig
 
 
 class MockDriver:
@@ -12,7 +12,7 @@ class MockDriver:
 
     def __init__(
         self,
-        config: HeadsetConfiguration | None = None,
+        config: HeadsetConfig | None = None,
         sampling_rate: int = 250,
         channel_count: int = 4,
     ) -> None:
@@ -42,6 +42,10 @@ class MockDriver:
     @property
     def is_connected(self) -> bool:
         return self._is_connected
+    
+    @property
+    def is_streaming(self) -> bool:
+        return self._is_streaming
 
     def connect(self) -> None:
         if not self._is_connected:

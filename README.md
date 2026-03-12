@@ -63,7 +63,7 @@ For development:
 hex-o-spell-experiment/
 ├── src/                    # Source code
 │   ├── gui/                # GUI components
-│   ├── egg_headset/        # EEG headset integration
+│   ├── eeg_headset/        # EEG headset integration
 │   └── data_manager/       # Data management system
 ├── tests/                  # Unit and integration tests
 │   ├── unit/               # Unit tests

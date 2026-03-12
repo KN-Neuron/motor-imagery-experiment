@@ -7,7 +7,7 @@ class HeadsetModel(Enum):
     MIDI_16CH_BASE = "MIDI_16CH_BASE"
 
 
-class HeadsetConfiguration:
+class HeadsetConfig:
     def __init__(self, model: HeadsetModel, config_path: str = "headsets.yaml"):
         self.model = model
 

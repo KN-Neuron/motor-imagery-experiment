@@ -1,15 +1,15 @@
-from src.egg_headset import EggHeadset
+from eeg_headset.eeg_headset import EEGHeadset
 
 import numpy as np
 
 
-class TestEggHeadset:
+class TestEEGHeadset:
     def test_initialization(self) -> None:
-        headset = EggHeadset()
+        headset = EEGHeadset()
         assert headset is not None
 
     def test_get_output(self) -> None:
-        headset = EggHeadset()
+        headset = EEGHeadset()
         assert headset.connect() is True
         headset.start()
         headset.annotate("A")

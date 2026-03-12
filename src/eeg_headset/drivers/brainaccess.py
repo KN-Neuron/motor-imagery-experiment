@@ -1,7 +1,7 @@
 import numpy as np
 from brainaccess.utils import acquisition
 
-from ..model import HeadsetConfiguration
+from ..headset_config import HeadsetConfig
 from brainaccess.core.eeg_manager import EEGManager
 
 
@@ -17,7 +17,7 @@ class BrainAccessDriver:
     1. is more efficient and 2. keeps the protocol contract)
     """
 
-    def __init__(self, config: HeadsetConfiguration):
+    def __init__(self, config: HeadsetConfig):
         self._config = config
         self._eeg = acquisition.EEG(mode="accumulate")
         self._mgr = EEGManager()
@@ -36,6 +36,10 @@ class BrainAccessDriver:
     @property
     def is_connected(self) -> bool:
         return self._is_connected
+    
+    @property
+    def is_streaming(self) -> bool:
+        return self._is_streaming
 
     def connect(self) -> None:
         if self._is_connected:
