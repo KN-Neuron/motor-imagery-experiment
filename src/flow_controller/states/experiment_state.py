@@ -47,6 +47,7 @@ class ExperimentState(FlowState):
             fixation_ms=config.fixation_ms,
             cue_ms=config.cue_ms,
             rest_ms=config.rest_ms,
+            cues=config.cues,
         )
 
         self.total_steps = len(self.sample_manager.step_queue)

@@ -1,24 +1,18 @@
 from enum import Enum
+import os
+import math
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QColor, QFont, QKeySequence, QShortcut
+from PyQt6.QtGui import QPainter, QColor, QFont, QKeySequence, QShortcut, QPixmap
 
 from src.sample_manager.experiment_step_type import ExperimentStepType
+from .experiment_view import STEP_DISPLAY
 
 
 class CalibrationEvent(Enum):
     ABORT = "abort"
     PAUSE = "pause"
     QUIT = "quit"
-
-STEP_DISPLAY = {
-    ExperimentStepType.DOUBLE_BLINK:   (QColor(100, 200, 255), "DOUBLE BLINK"),
-    ExperimentStepType.LEFT_HAND:      (QColor(255, 150, 150), "LEFT HAND CLENCH"),
-    ExperimentStepType.RIGHT_HAND:     (QColor(150, 255, 150), "RIGHT HAND CLENCH"),
-    ExperimentStepType.JAW_CLENCH:     (QColor(255, 200, 100), "JAW CLENCH"),
-    ExperimentStepType.HEAD_MOVEMENT:  (QColor(200, 150, 255), "HEAD MOVEMENT"),
-    ExperimentStepType.SSVEP_FOCUS:    (QColor(255, 255, 150), "SSVEP FOCUS"),
-}
 
 class CalibrationView(QWidget):
     def __init__(self) -> None:
@@ -29,6 +23,7 @@ class CalibrationView(QWidget):
         self.no_eeg_mode: bool = False
         self.is_paused = False
         self.progress_percent: float = 0.0
+        self.ssvep_display_arg: int = 0 # For SSVEP-specific display logic
 
         self._setup_ui()
 
@@ -106,14 +101,44 @@ class CalibrationView(QWidget):
             self._draw_fixation_cross(painter, w, h)
             return
 
-        color, label = STEP_DISPLAY.get(self.step_type, (QColor(255, 255, 255), self.step_type.value.upper()))
+        color, label, img_path = STEP_DISPLAY.get(
+            self.step_type,
+            (QColor(255, 255, 255), self.step_type.value.upper(), None)
+        )
 
         # Action label
-        action_font = QFont("Arial", 48, QFont.Weight.Bold)
+        action_font = QFont("Arial", 32, QFont.Weight.Bold)
         painter.setFont(action_font)
         painter.setPen(color)
         action_w = painter.fontMetrics().horizontalAdvance(label)
-        painter.drawText((w - action_w) // 2, int(h * 0.42) + painter.fontMetrics().ascent(), label)
+        text_y = int(h * 0.42) + painter.fontMetrics().ascent()
+        painter.drawText((w - action_w) // 2, text_y, label)
+
+        if self.step_type == ExperimentStepType.SSVEP_FOCUS:
+            sin_factor = math.sin(2 * math.pi * 10 * self.ssvep_display_arg / 100)
+            sin_factor = 0 if sin_factor < 0.5 else sin_factor # Creates a "blinking" effect where the dot is fully visible for half the time and invisible for the other half
+            painter.save()
+            painter.setOpacity(sin_factor)
+            dot_radius = 24
+            cx = w // 2
+            cy = int(h * 0.60) + 24
+            painter.setBrush(QColor(255, 255, 255))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(cx - dot_radius, cy - dot_radius, dot_radius * 2, dot_radius * 2)
+            painter.restore()
+            self.ssvep_display_arg = (self.ssvep_display_arg + 1) % 100 # Increment to trigger animation changes
+        
+        else:
+            # Draw image
+            if img_path is not None and os.path.exists(img_path):
+                pixmap = QPixmap(img_path)
+                max_img_w, max_img_h = 300, 180
+                img_w = min(pixmap.width(), max_img_w)
+                img_h = min(pixmap.height(), max_img_h)
+                scaled_pixmap = pixmap.scaled(img_w, img_h, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                img_x = (w - scaled_pixmap.width()) // 2
+                img_y = text_y + 30
+                painter.drawPixmap(img_x, img_y, scaled_pixmap)
 
     def _draw_fixation_cross(self, painter: QPainter, w: int, h: int):
         cx, cy = w // 2, int(h * 0.42) + 24
@@ -124,11 +149,11 @@ class CalibrationView(QWidget):
         painter.drawRect(cx - thick // 2, cy - arm, thick, arm * 2)
 
     def _draw_result(self, painter: QPainter, w: int, h: int):
-        prompted_color, prompted_label = STEP_DISPLAY.get(
+        prompted_color, prompted_label, _ = STEP_DISPLAY.get(
             self.step_type, (QColor(200, 200, 200), self.step_type.value.upper())
         ) if self.step_type else (QColor(200, 200, 200), "—")
 
-        classified_color, classified_label = STEP_DISPLAY.get(
+        classified_color, classified_label, _ = STEP_DISPLAY.get(
             self.classified_as, (QColor(200, 200, 200), self.classified_as.value.upper())
         )
 

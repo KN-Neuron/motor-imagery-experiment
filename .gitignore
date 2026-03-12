@@ -34,7 +34,7 @@ htmlcov/
 Thumbs.db
 
 # Config file
-config.json
+trials_config.yaml
 
 # Session data
 sessions/*

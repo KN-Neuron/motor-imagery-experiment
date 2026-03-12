@@ -107,6 +107,91 @@ def _separator() -> QFrame:
     sep.setStyleSheet("color: rgba(100, 100, 150, 80);")
     return sep
 
+class ExperimentConfigDialog(QDialog):
+    """Dialog for configuring an experiment session; pre-fills fields from ExperimentConfig if provided."""
+
+    def __init__(self, initial: ExperimentConfig | None = None, parent=None):
+        super().__init__(parent)
+        self._initial = initial
+        self._config: ExperimentConfig | None = None
+        self._setup_ui()
+
+    def _setup_ui(self):
+        """Build and lay out all widgets."""
+        self.setWindowTitle("Experiment Setup")
+        self.setFixedSize(390, 390)
+        self.setStyleSheet(_DIALOG_STYLE)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
+
+        title = QLabel("Experiment Configuration")
+        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        title.setStyleSheet("color: rgb(180, 190, 255);")
+        layout.addWidget(title)
+        layout.addWidget(_separator())
+
+        ini = self._initial
+
+        self.trials_spinbox = _make_spinbox(1, 50, 1, ini.trials_per_class if ini else 5)
+        layout.addLayout(_make_row("Trials per class:", self.trials_spinbox))
+
+        self.strategy_combo = QComboBox()
+        self.strategy_combo.addItem("Stratified", "stratified")
+        self.strategy_combo.addItem("Random", "random")
+        self.strategy_combo.setFixedWidth(130)
+        if ini:
+            idx = self.strategy_combo.findData(ini.strategy)
+            if idx >= 0:
+                self.strategy_combo.setCurrentIndex(idx)
+        layout.addLayout(_make_row("Sampling strategy:", self.strategy_combo))
+
+        layout.addWidget(_separator())
+
+        self.fixation_ms = _make_spinbox(100, 10000, 100, ini.fixation_ms if ini else 2000)
+        layout.addLayout(_make_row("Fixation duration (ms):", self.fixation_ms))
+
+        self.cue_ms = _make_spinbox(100, 10000, 100, ini.cue_ms if ini else 4000)
+        layout.addLayout(_make_row("Cue duration (ms):", self.cue_ms))
+
+        self.rest_ms = _make_spinbox(100, 10000, 100, ini.rest_ms if ini else 1500)
+        layout.addLayout(_make_row("Rest duration (ms):", self.rest_ms))
+
+        layout.addStretch()
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setFixedHeight(36)
+        cancel_btn.setStyleSheet(_CANCEL_STYLE)
+        cancel_btn.clicked.connect(self.reject)
+
+        start_btn = QPushButton("Start Experiment")
+        start_btn.setFixedHeight(36)
+        start_btn.setStyleSheet(_START_STYLE)
+        start_btn.clicked.connect(self._on_start)
+
+        btn_row.addWidget(cancel_btn)
+        btn_row.addWidget(start_btn)
+        layout.addLayout(btn_row)
+
+    def _on_start(self):
+        """Collect widget values into an ExperimentConfig and accept the dialog."""
+        self._config = ExperimentConfig(
+            trials_per_class=self.trials_spinbox.value(),
+            strategy=self.strategy_combo.currentData(),
+            fixation_ms=self.fixation_ms.value(),
+            cue_ms=self.cue_ms.value(),
+            rest_ms=self.rest_ms.value(),
+            cues=self._initial.cues if self._initial else None
+        )
+        self.accept()
+
+    def get_config(self) -> ExperimentConfig | None:
+        """Return the confirmed config, or None if the dialog was cancelled."""
+        return self._config
 
 class CalibrationConfigDialog(QDialog):
     """Dialog for configuring a calibration session; pre-fills fields from CalibrationConfig if provided."""
@@ -190,95 +275,10 @@ class CalibrationConfigDialog(QDialog):
             cue_ms=self.cue_ms.value(),
             rest_ms=self.rest_ms.value(),
             result_ms=self.result_ms.value(),
+            cues=self._initial.cues if self._initial else None
         )
         self.accept()
 
     def get_config(self) -> CalibrationConfig | None:
-        """Return the confirmed config, or None if the dialog was cancelled."""
-        return self._config
-
-
-class ExperimentConfigDialog(QDialog):
-    """Dialog for configuring an experiment session; pre-fills fields from ExperimentConfig if provided."""
-
-    def __init__(self, initial: ExperimentConfig | None = None, parent=None):
-        super().__init__(parent)
-        self._initial = initial
-        self._config: ExperimentConfig | None = None
-        self._setup_ui()
-
-    def _setup_ui(self):
-        """Build and lay out all widgets."""
-        self.setWindowTitle("Experiment Setup")
-        self.setFixedSize(390, 390)
-        self.setStyleSheet(_DIALOG_STYLE)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 20)
-        layout.setSpacing(12)
-
-        title = QLabel("Experiment Configuration")
-        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        title.setStyleSheet("color: rgb(180, 190, 255);")
-        layout.addWidget(title)
-        layout.addWidget(_separator())
-
-        ini = self._initial
-
-        self.trials_spinbox = _make_spinbox(1, 50, 1, ini.trials_per_class if ini else 5)
-        layout.addLayout(_make_row("Trials per class:", self.trials_spinbox))
-
-        self.strategy_combo = QComboBox()
-        self.strategy_combo.addItem("Stratified", "stratified")
-        self.strategy_combo.addItem("Random", "random")
-        self.strategy_combo.setFixedWidth(130)
-        if ini:
-            idx = self.strategy_combo.findData(ini.strategy)
-            if idx >= 0:
-                self.strategy_combo.setCurrentIndex(idx)
-        layout.addLayout(_make_row("Sampling strategy:", self.strategy_combo))
-
-        layout.addWidget(_separator())
-
-        self.fixation_ms = _make_spinbox(100, 10000, 100, ini.fixation_ms if ini else 2000)
-        layout.addLayout(_make_row("Fixation duration (ms):", self.fixation_ms))
-
-        self.cue_ms = _make_spinbox(100, 10000, 100, ini.cue_ms if ini else 4000)
-        layout.addLayout(_make_row("Cue duration (ms):", self.cue_ms))
-
-        self.rest_ms = _make_spinbox(100, 10000, 100, ini.rest_ms if ini else 1500)
-        layout.addLayout(_make_row("Rest duration (ms):", self.rest_ms))
-
-        layout.addStretch()
-
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(10)
-
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.setFixedHeight(36)
-        cancel_btn.setStyleSheet(_CANCEL_STYLE)
-        cancel_btn.clicked.connect(self.reject)
-
-        start_btn = QPushButton("Start Experiment")
-        start_btn.setFixedHeight(36)
-        start_btn.setStyleSheet(_START_STYLE)
-        start_btn.clicked.connect(self._on_start)
-
-        btn_row.addWidget(cancel_btn)
-        btn_row.addWidget(start_btn)
-        layout.addLayout(btn_row)
-
-    def _on_start(self):
-        """Collect widget values into an ExperimentConfig and accept the dialog."""
-        self._config = ExperimentConfig(
-            trials_per_class=self.trials_spinbox.value(),
-            strategy=self.strategy_combo.currentData(),
-            fixation_ms=self.fixation_ms.value(),
-            cue_ms=self.cue_ms.value(),
-            rest_ms=self.rest_ms.value(),
-        )
-        self.accept()
-
-    def get_config(self) -> ExperimentConfig | None:
         """Return the confirmed config, or None if the dialog was cancelled."""
         return self._config

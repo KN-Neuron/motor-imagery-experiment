@@ -90,7 +90,7 @@ class MainMenuView(QWidget):
 
         # Draw KN NEURON logo and text
         try:
-            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'imgs', 'kn_neuron_logo.png')
+            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '../../res/imgs', 'kn_neuron_logo.png')
             logo_pixmap = QPixmap(logo_path).scaled(40, 40,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation
