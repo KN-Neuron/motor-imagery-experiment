@@ -40,6 +40,10 @@ class BrainAccessDriver:
     @property
     def is_streaming(self) -> bool:
         return self._is_streaming
+    
+    @property
+    def config(self) -> HeadsetConfig:
+        return self._config
 
     def connect(self) -> None:
         if self._is_connected:
@@ -93,9 +97,9 @@ class BrainAccessDriver:
 
     def read_available_samples(self) -> np.ndarray:
         if not self._is_connected:
-            raise RuntimeError("Cannot annotate: Headset not connected.")
+            raise RuntimeError("Cannot read samples: Headset not connected.")
         if not self._is_streaming:
-            raise RuntimeError("Cannot annotate: Headset not streaming.")
+            raise RuntimeError("Cannot read samples: Headset not streaming.")
 
         # safely acquire chunks and clear the buffer
         with self._eeg.data.lock:

@@ -1,5 +1,6 @@
 from typing import override, TYPE_CHECKING
-from PyQt6.QtCore import QTime
+from PyQt6.QtCore import QElapsedTimer
+from pathlib import Path
 
 from src.sample_manager.sample_manager import SampleManager, ExperimentStep
 from src.sample_manager.experiment_step_type import ExperimentStepType
@@ -22,12 +23,12 @@ class ExperimentState(FlowState):
         super().__init__(flow_controller)
         self.sample_manager: SampleManager = None
         self.current_step: ExperimentStep = None
-        self.step_start_time: QTime = None
+        self.step_timer: QElapsedTimer = QElapsedTimer()
         self.no_eeg_mode: bool = False
         self.total_steps: int = 0
         self.completed_steps: int = 0
         self.is_paused: bool = False
-        self.pause_elapsed_time: int = 0
+        self.step_was_paused: bool = False
         self.session_saver: SessionSaver = None
 
     @override
@@ -54,7 +55,8 @@ class ExperimentState(FlowState):
         self.completed_steps = 0
 
         if not self.no_eeg_mode:
-            self.session_saver = SessionSaver(session_type="experiment")
+            channel_labels = list(self.eeg_headset._driver._config.channel_map.values())
+            self.session_saver = SessionSaver(channel_labels=channel_labels, output_dir=Path("sessions/experiments"))
             try:
                 self.eeg_headset.start()
             except Exception as e:
@@ -63,11 +65,11 @@ class ExperimentState(FlowState):
                 return
 
         self.current_step = self.sample_manager.get_next()
-        self.step_start_time = QTime.currentTime()
+        self.step_timer.start()
 
-        # Annotate first step if it is classifiable (it is not but just in case the strategy changes)
-        if self.current_step and self.current_step.step_type in _CLASSIFIABLE:
-            self.eeg_headset.annotate(self.current_step.step_type.value)
+        # Annotate first start so we have a clear marker in the buffer
+        if not self.no_eeg_mode:
+            self.eeg_headset.annotate("experiment_start")
 
         self.gui_manager.show_experiment()
 
@@ -111,31 +113,26 @@ class ExperimentState(FlowState):
             
             elif event == ExperimentEvent.PAUSE:
                 self.is_paused = not self.is_paused
-                if self.is_paused:
-                    current_time = QTime.currentTime()
-                    self.pause_elapsed_time = self.step_start_time.msecsTo(current_time)
-                    print(f"Experiment PAUSED (elapsed: {self.pause_elapsed_time}ms)")
-                else:
-                    # Resume: reset start time accounting for paused duration
-                    self.step_start_time = QTime.currentTime().addMSecs(-self.pause_elapsed_time)
-                    print(f"Experiment RESUMED (continuing from: {self.pause_elapsed_time}ms)")
+                self.step_was_paused = True
+                print("Experiment PAUSED" if self.is_paused else "Experiment RESUMED")
 
         if self.is_paused:
             return
 
-        current_time = QTime.currentTime()
-        elapsed = self.step_start_time.msecsTo(current_time)
+        elapsed = self.step_timer.elapsed()
 
         if elapsed >= self.current_step.duration_ms:
-            if not self.no_eeg_mode and self.current_step.step_type in _CLASSIFIABLE:
-                eeg_data = self.eeg_headset.get_output(seconds=self.current_step.duration_ms // 1000)
-                self.session_saver.save_trial(eeg_data, self.current_step.step_type.value)
+            if not self.no_eeg_mode:
+                step_data = self.eeg_headset.get_output(seconds=self.current_step.duration_ms // 1000)
+                label = self.current_step.step_type.value.upper() if not self.step_was_paused else "PAUSED" # Mark paused steps in the data
+                self.session_saver.save_step(step_data, label, elapsed / 1000)
+                self.eeg_headset.annotate("border")
 
             self.completed_steps += 1
             self.current_step = self.sample_manager.get_next()
-            self.step_start_time = current_time
+            self.step_timer.restart()
+            self.step_was_paused = False
 
-            # Annotate next step if it is classifiable
             if self.current_step and self.current_step.step_type in _CLASSIFIABLE:
                 self.eeg_headset.annotate(self.current_step.step_type.value)
 

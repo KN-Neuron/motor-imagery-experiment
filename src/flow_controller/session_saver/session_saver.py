@@ -5,30 +5,24 @@ import numpy as np
 
 
 class SessionSaver:
-    """Saves labeled EEG epochs to disk incrementally — one .npy file per trial.
-
-    Directory layout:
-        <output_dir>/
-            <YYYYMMDD_HHMMSS>_<session_type>/
-                trial_000_LEFT_HAND.npy
-                trial_001_RIGHT_HAND.npy
-                ...
-    Each .npy file contains a single epoch of shape (n_channels, n_samples).
+    """
+    A class to save session data and labels to a specified directory.
+    All trial data is appended to a single data.csv file, with labels in labels.csv.
     """
 
-    def __init__(self, session_type: str, output_dir: Path = Path("sessions")):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.session_dir = output_dir / f"{timestamp}_{session_type}"
+    def __init__(self, channel_labels: list[str], output_dir: Path = Path("sessions")):
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.session_dir = output_dir / f"{timestamp}"
         self.session_dir.mkdir(parents=True, exist_ok=True)
-        self._trial_count = 0
+
+        with open(self.session_dir / "data.csv", "w") as f:
+            f.write("# " + ",".join(channel_labels) + "\n")
+
         print(f"[SessionSaver] Saving to: {self.session_dir}")
 
-    def save_trial(self, data: np.ndarray, label: str) -> None:
-        """Save a single epoch. data must have shape (n_channels, n_samples)."""
-        filename = self.session_dir / f"trial_{self._trial_count:03d}_{label}.npy"
-        np.save(filename, data)
-        self._trial_count += 1
-
-    @property
-    def trial_count(self) -> int:
-        return self._trial_count
+    def save_step(self, data: np.ndarray, label: str, duration: float) -> None:
+        """Append trial data to data.csv and label+duration to labels.csv."""
+        with open(self.session_dir / "data.csv", "a") as f:
+            np.savetxt(f, data.T, delimiter=",", fmt="%.6f")
+        with open(self.session_dir / "labels.csv", "a") as f:
+            f.write(f"{label},{duration}\n")

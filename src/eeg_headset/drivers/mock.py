@@ -17,9 +17,14 @@ class MockDriver:
         channel_count: int = 4,
     ) -> None:
         if config is not None:
+            # If a config is provided, use its settings
+            # Since session_saver rely on the config for metadata, we want to set it even in the mock driver
+            self._config = config
             self._sampling_rate = config.sample_rate_hz
             self._channel_count = config.n_channels
         else:
+            # Use only for testing purposes where config is not used. In practice, the MockDriver should always be initialized with a config.
+            self._config = None
             self._sampling_rate = sampling_rate
             self._channel_count = channel_count
         self._init_state()
@@ -46,6 +51,10 @@ class MockDriver:
     @property
     def is_streaming(self) -> bool:
         return self._is_streaming
+    
+    @property
+    def config(self) -> HeadsetConfig:
+        return self._config
 
     def connect(self) -> None:
         if not self._is_connected:

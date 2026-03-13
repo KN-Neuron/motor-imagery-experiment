@@ -1,4 +1,5 @@
 from typing import Protocol
+from src.eeg_headset.headset_config import HeadsetConfig
 import numpy as np
 
 
@@ -23,6 +24,11 @@ class HeadsetDriver(Protocol):
     @property
     def is_streaming(self) -> bool:
         """Whether the headset is currently streaming data."""
+        ...
+
+    @property
+    def config(self) -> "HeadsetConfig":
+        """Configuration object containing headset settings."""
         ...
 
     def connect(self) -> None:
