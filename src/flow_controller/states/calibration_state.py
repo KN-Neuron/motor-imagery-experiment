@@ -111,6 +111,10 @@ class CalibrationState(FlowState):
                 print("Calibration PAUSED" if self.is_paused else "Calibration RESUMED")
 
         if self.is_paused:
+            if not self.no_eeg_mode and self.step_timer.elapsed() > self.eeg_headset.buffer_size_seconds * 1000:
+                print("[CalibrationState] Buffer overflow during pause — ending calibration")
+                from .main_menu_state import MainMenuState
+                self.flow_controller.change_state(MainMenuState)
             return
 
         elapsed = self.step_timer.elapsed()

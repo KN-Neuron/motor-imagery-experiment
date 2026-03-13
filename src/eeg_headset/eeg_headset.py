@@ -14,15 +14,19 @@ class EEGHeadset:
     dodawanie annotacji oraz pobieranie próbek EEG od ostatniej annotacji.
     """
 
-    def __init__(self, driver: HeadsetDriver, buffer_size_seconds: int = 60) -> None:
+    def __init__(self, driver: HeadsetDriver, buffer_size_seconds: int = 10) -> None:
         self._driver = driver
         self._buffer = RingBuffer(
             self._driver.channel_count,
-            buffer_size_seconds * self._driver.sampling_rate,
+            buffer_size_seconds,
             self._driver.sampling_rate,
         )
         self._subscribers: List[EegSubscriberCallback] = []
         self._last_annotation_index: Optional[int] = None
+
+    @property
+    def buffer_size_seconds(self) -> int:
+        return self._buffer.capacity // self._driver.sampling_rate
 
     def is_connected(self) -> bool:
         return self._driver.is_connected

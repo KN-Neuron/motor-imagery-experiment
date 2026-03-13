@@ -117,6 +117,10 @@ class ExperimentState(FlowState):
                 print("Experiment PAUSED" if self.is_paused else "Experiment RESUMED")
 
         if self.is_paused:
+            if not self.no_eeg_mode and self.step_timer.elapsed() > self.eeg_headset.buffer_size_seconds * 1000:
+                print("[ExperimentState] Buffer overflow during pause — ending experiment")
+                from .main_menu_state import MainMenuState
+                self.flow_controller.change_state(MainMenuState)
             return
 
         elapsed = self.step_timer.elapsed()
