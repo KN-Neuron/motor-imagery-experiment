@@ -1,12 +1,12 @@
 from enum import Enum
 import os
 import math
-from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QColor, QFont, QKeySequence, QShortcut, QPixmap
+from PyQt6.QtGui import QPainter, QColor, QFont, QPixmap
 
 from src.sample_manager.experiment_step_type import ExperimentStepType
 from .experiment_view import STEP_DISPLAY
+from .view import View
 
 
 class CalibrationEvent(Enum):
@@ -14,26 +14,20 @@ class CalibrationEvent(Enum):
     PAUSE = "pause"
     QUIT = "quit"
 
-class CalibrationView(QWidget):
+class CalibrationView(View):
     def __init__(self) -> None:
-        super().__init__()
-        self.pending_events = []
         self.step_type: ExperimentStepType | None = None
         self.classified_as: ExperimentStepType | None = None
         self.no_eeg_mode: bool = False
         self.is_paused = False
         self.progress_percent: float = 0.0
-        self.ssvep_display_arg: int = 0 # For SSVEP-specific display logic
-
-        self._setup_ui()
+        self.ssvep_display_arg: int = 0
+        super().__init__()
 
     def _setup_ui(self):
         self.setStyleSheet("background-color: rgb(20, 20, 35);")
 
-        # ESC shortcut enabled/disabled via showEvent/hideEvent
-        self.esc_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
-        self.esc_shortcut.activated.connect(self._on_esc_pressed)
-        self.esc_shortcut.setEnabled(False)
+        self._register_shortcut(Qt.Key.Key_Escape, self._on_esc_pressed)
 
     def update_content(self, 
         step_type: ExperimentStepType | None,
@@ -213,24 +207,7 @@ class CalibrationView(QWidget):
             fill_w = int(w * self.progress_percent)
             painter.fillRect(0, bar_y, fill_w, bar_h, QColor(80, 120, 200))
 
-    def get_pending_events(self) -> list[CalibrationEvent]:
-        events = self.pending_events.copy()
-        self.pending_events.clear()
-        return events
-    
     def _on_esc_pressed(self):
         if self.is_paused:
             print("[CalibrationView] ESC pressed during pause - adding ABORT event")
             self.pending_events.append(CalibrationEvent.ABORT)
-
-    def showEvent(self, event):
-        """Called by Qt when this view becomes visible. Enables the ESC shortcut."""
-        super().showEvent(event)
-        self.esc_shortcut.setEnabled(True)
-        print("[CalibrationView] ESC shortcut enabled")
-
-    def hideEvent(self, event):
-        """Called by Qt when this view is hidden. Disables the ESC shortcut to prevent it from firing in the background."""
-        super().hideEvent(event)
-        self.esc_shortcut.setEnabled(False)
-        print("[CalibrationView] ESC shortcut disabled")

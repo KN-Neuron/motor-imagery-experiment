@@ -3,18 +3,14 @@ from PyQt6.QtCore import QElapsedTimer
 from pathlib import Path
 
 from src.sample_manager.sample_manager import SampleManager, ExperimentStep
-from src.sample_manager.experiment_step_type import ExperimentStepType
+from src.sample_manager.experiment_step_type import CLASSIFIABLE
 from src.gui.gui_manager import ExperimentEvent
 from src.flow_controller.session_saver.session_saver import SessionSaver
-
 from . import FlowState
+
 
 if TYPE_CHECKING:
     from .main_menu_state import MainMenuState
-
-_CLASSIFIABLE = {s for s in ExperimentStepType
-                 if s not in (ExperimentStepType.FIXATION, ExperimentStepType.REST)}
-
 
 class ExperimentState(FlowState):
     """Handles experiment procedures and phase transitions."""
@@ -34,6 +30,7 @@ class ExperimentState(FlowState):
     @override
     def enter(self):
         """Initialize experiment with SampleManager."""
+
         self.no_eeg_mode = not self.eeg_headset.is_connected()
 
         config = self.gui_manager.show_experiment_config_dialog()
@@ -53,10 +50,12 @@ class ExperimentState(FlowState):
 
         self.total_steps = len(self.sample_manager.step_queue)
         self.completed_steps = 0
+        self.is_paused = False
 
         if not self.no_eeg_mode:
             channel_labels = list(self.eeg_headset._driver._config.channel_map.values())
-            self.session_saver = SessionSaver(channel_labels=channel_labels, output_dir=Path("sessions/experiments"))
+            sample_rate = self.eeg_headset._driver.sampling_rate
+            self.session_saver = SessionSaver(channel_labels=channel_labels, sample_rate=sample_rate, output_dir=Path("sessions/experiments"))
             try:
                 self.eeg_headset.start()
             except Exception as e:
@@ -118,6 +117,7 @@ class ExperimentState(FlowState):
 
         if self.is_paused:
             if not self.no_eeg_mode and self.step_timer.elapsed() > self.eeg_headset.buffer_size_seconds * 1000:
+                # If paused for too long, we risk overflowing the EEG buffer since we're not reading data during the pause. To prevent this, we can end the experiment if the pause exceeds the buffer size
                 print("[ExperimentState] Buffer overflow during pause — ending experiment")
                 from .main_menu_state import MainMenuState
                 self.flow_controller.change_state(MainMenuState)
@@ -137,7 +137,7 @@ class ExperimentState(FlowState):
             self.step_timer.restart()
             self.step_was_paused = False
 
-            if self.current_step and self.current_step.step_type in _CLASSIFIABLE:
+            if self.current_step and self.current_step.step_type in CLASSIFIABLE:
                 self.eeg_headset.annotate(self.current_step.step_type.value)
 
             if self.current_step:
@@ -145,7 +145,12 @@ class ExperimentState(FlowState):
 
     @override
     def exit(self):
-        """Cleanup experiment resources."""
+        """Cleanup experiment resources and export data to EDF"""
+        if self.session_saver is not None:
+            try:
+                self.session_saver.export_to_edf()
+            except Exception as e:
+                print(f"[ExperimentState] Error exporting EDF: {e}")
         self.sample_manager = None
         self.current_step = None
         self.total_steps = 0
