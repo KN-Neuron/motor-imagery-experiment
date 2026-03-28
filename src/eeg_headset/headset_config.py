@@ -5,6 +5,7 @@ import yaml
 class HeadsetModel(Enum):
     HALO_4CH = "HALO_4CH"
     MIDI_16CH_BASE = "MIDI_16CH_BASE"
+    SAMPLE_64CH = "SAMPLE_64CH"
 
 
 class HeadsetConfig:
