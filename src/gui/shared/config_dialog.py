@@ -1,9 +1,21 @@
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QComboBox, QPushButton, QFrame
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QComboBox,
+    QPushButton, QFrame, QLineEdit, QCheckBox
 )
 from PyQt6.QtGui import QFont
 
 from src.config.config import CalibrationConfig, ExperimentConfig
+from src.sample_manager.experiment_step_type import CLASSIFIABLE
+
+# Human-readable labels for cue types
+_CUE_DISPLAY_NAMES = {
+    "double_blink": "Double blink",
+    "left_hand_clench": "Left hand clench",
+    "right_hand_clench": "Right hand clench",
+    "jaw_clench": "Jaw clench",
+    "head_movement": "Head movement",
+    "ssvep_focus": "SSVEP focus",
+}
 
 _DIALOG_STYLE = """
     QDialog {
@@ -47,6 +59,35 @@ _DIALOG_STYLE = """
         background-color: rgb(40, 40, 58);
         color: rgb(220, 220, 240);
         selection-background-color: rgb(70, 90, 160);
+    }
+    QLineEdit {
+        background-color: rgb(40, 40, 58);
+        color: rgb(220, 220, 240);
+        border: 1px solid rgba(100, 100, 150, 120);
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 14px;
+        font-family: 'Segoe UI', Arial;
+    }
+    QCheckBox {
+        color: rgb(200, 200, 220);
+        font-family: 'Segoe UI', Arial;
+        font-size: 12px;
+        spacing: 6px;
+    }
+    QCheckBox::indicator {
+        width: 16px;
+        height: 16px;
+        border: 1px solid rgba(100, 100, 150, 120);
+        border-radius: 3px;
+        background-color: rgb(40, 40, 58);
+    }
+    QCheckBox::indicator:checked {
+        background-color: rgba(70, 90, 180, 200);
+        border-color: rgba(100, 120, 220, 150);
+    }
+    QCheckBox::indicator:hover {
+        border-color: rgba(120, 140, 200, 180);
     }
 """
 
@@ -107,6 +148,28 @@ def _separator() -> QFrame:
     sep.setStyleSheet("color: rgba(100, 100, 150, 80);")
     return sep
 
+
+def _make_cue_checkboxes(layout: QVBoxLayout, enabled_cues: list[str] | None) -> dict[str, QCheckBox]:
+    """Create checkboxes for all classifiable cue types. Returns {cue_value: checkbox}."""
+    all_cue_values = [step.value for step in CLASSIFIABLE]
+    enabled_set = set(c.lower() for c in enabled_cues) if enabled_cues is not None else set(all_cue_values)
+
+    checkboxes = {}
+    for cue_value in all_cue_values:
+        display_name = _CUE_DISPLAY_NAMES.get(cue_value, cue_value)
+        cb = QCheckBox(display_name)
+        cb.setChecked(cue_value in enabled_set)
+        layout.addWidget(cb)
+        checkboxes[cue_value] = cb
+
+    return checkboxes
+
+
+def _get_selected_cues(checkboxes: dict[str, QCheckBox]) -> list[str]:
+    """Return list of cue values for checked checkboxes."""
+    return [value for value, cb in checkboxes.items() if cb.isChecked()]
+
+
 class ExperimentConfigDialog(QDialog):
     """Dialog for configuring an experiment session; pre-fills fields from ExperimentConfig if provided."""
 
@@ -119,7 +182,7 @@ class ExperimentConfigDialog(QDialog):
     def _setup_ui(self):
         """Build and lay out all widgets."""
         self.setWindowTitle("Experiment Setup")
-        self.setFixedSize(390, 390)
+        self.setFixedSize(390, 600)
         self.setStyleSheet(_DIALOG_STYLE)
 
         layout = QVBoxLayout(self)
@@ -158,6 +221,23 @@ class ExperimentConfigDialog(QDialog):
         self.rest_ms = _make_spinbox(100, 10000, 100, ini.rest_ms if ini else 1500)
         layout.addLayout(_make_row("Rest duration (ms):", self.rest_ms))
 
+        layout.addWidget(_separator())
+
+        cues_label = QLabel("Cues:")
+        cues_label.setFont(QFont("Segoe UI", 11))
+        layout.addWidget(cues_label)
+
+        self._cue_checkboxes = _make_cue_checkboxes(layout, ini.cues if ini else None)
+
+        layout.addWidget(_separator())
+
+        self.session_name_edit = QLineEdit()
+        self.session_name_edit.setPlaceholderText("auto (timestamp)")
+        self.session_name_edit.setFixedWidth(180)
+        if ini and ini.session_name:
+            self.session_name_edit.setText(ini.session_name)
+        layout.addLayout(_make_row("Session name:", self.session_name_edit))
+
         layout.addStretch()
 
         btn_row = QHBoxLayout()
@@ -179,13 +259,15 @@ class ExperimentConfigDialog(QDialog):
 
     def _on_start(self):
         """Collect widget values into an ExperimentConfig and accept the dialog."""
+        name = self.session_name_edit.text().strip() or None
         self._config = ExperimentConfig(
             trials_per_class=self.trials_spinbox.value(),
             strategy=self.strategy_combo.currentData(),
             fixation_ms=self.fixation_ms.value(),
             cue_ms=self.cue_ms.value(),
             rest_ms=self.rest_ms.value(),
-            cues=self._initial.cues if self._initial else None
+            cues=_get_selected_cues(self._cue_checkboxes),
+            session_name=name,
         )
         self.accept()
 
@@ -205,7 +287,7 @@ class CalibrationConfigDialog(QDialog):
     def _setup_ui(self):
         """Build and lay out all widgets."""
         self.setWindowTitle("Calibration Setup")
-        self.setFixedSize(390, 430)
+        self.setFixedSize(390, 640)
         self.setStyleSheet(_DIALOG_STYLE)
 
         layout = QVBoxLayout(self)
@@ -247,6 +329,23 @@ class CalibrationConfigDialog(QDialog):
         self.result_ms = _make_spinbox(100, 10000, 100, ini.result_ms if ini else 2000)
         layout.addLayout(_make_row("Result duration (ms):", self.result_ms))
 
+        layout.addWidget(_separator())
+
+        cues_label = QLabel("Cues:")
+        cues_label.setFont(QFont("Segoe UI", 11))
+        layout.addWidget(cues_label)
+
+        self._cue_checkboxes = _make_cue_checkboxes(layout, ini.cues if ini else None)
+
+        layout.addWidget(_separator())
+
+        self.session_name_edit = QLineEdit()
+        self.session_name_edit.setPlaceholderText("auto (timestamp)")
+        self.session_name_edit.setFixedWidth(180)
+        if ini and ini.session_name:
+            self.session_name_edit.setText(ini.session_name)
+        layout.addLayout(_make_row("Session name:", self.session_name_edit))
+
         layout.addStretch()
 
         btn_row = QHBoxLayout()
@@ -268,6 +367,7 @@ class CalibrationConfigDialog(QDialog):
 
     def _on_start(self):
         """Collect widget values into a CalibrationConfig and accept the dialog."""
+        name = self.session_name_edit.text().strip() or None
         self._config = CalibrationConfig(
             trials_per_class=self.trials_spinbox.value(),
             strategy=self.strategy_combo.currentData(),
@@ -275,7 +375,8 @@ class CalibrationConfigDialog(QDialog):
             cue_ms=self.cue_ms.value(),
             rest_ms=self.rest_ms.value(),
             result_ms=self.result_ms.value(),
-            cues=self._initial.cues if self._initial else None
+            cues=_get_selected_cues(self._cue_checkboxes),
+            session_name=name,
         )
         self.accept()
 

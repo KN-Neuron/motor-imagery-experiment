@@ -50,6 +50,10 @@ class EEGHeadset:
         """Subskrybuje callback, który będzie wywoływany przy każdym wywołaniu poll()"""
         self._subscribers.append(callback)
 
+    def remove_subscriber(self, callback: EegSubscriberCallback) -> None:
+        """Usuwa callback z listy subskrybentów."""
+        self._subscribers.remove(callback)
+
     def annotate(self, label: str) -> None:
         self._last_annotation_index = self._buffer.total_samples
         self._driver.annotate(label)

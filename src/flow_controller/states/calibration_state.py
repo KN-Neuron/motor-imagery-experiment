@@ -60,19 +60,21 @@ class CalibrationState(FlowState):
         if not self.no_eeg_mode:
             channel_labels = list(self.eeg_headset._driver._config.channel_map.values())
             sample_rate = self.eeg_headset._driver.sampling_rate
-            self.session_saver = SessionSaver(channel_labels=channel_labels, sample_rate=sample_rate, output_dir=Path("sessions/calibrations"))
+            self.session_saver = SessionSaver(channel_labels=channel_labels, sample_rate=sample_rate, output_dir=Path("sessions/calibrations"), session_name=config.session_name)
             try:
                 self.eeg_headset.start()
             except Exception as e:
                 print(f"[CalibrationState] Error starting EEG headset: {e}")
                 self.flow_controller.change_state(MainMenuState)
                 return
+            self.session_saver.start_session()
+            self.eeg_headset.add_subscriber(self.session_saver.on_chunk)
 
         self.current_step = self.sample_manager.get_next()
         self.step_timer.start()
 
         if not self.no_eeg_mode:
-            self.eeg_headset.annotate("calibration_start")
+            self.session_saver.add_marker("calibration_start")
 
         self.gui_manager.show_calibration()
         self.gui_manager.update_calibration(self.current_step.step_type, None, 0.0, self.no_eeg_mode)
@@ -106,14 +108,11 @@ class CalibrationState(FlowState):
             elif event == CalibrationEvent.PAUSE:
                 self.is_paused = not self.is_paused
                 self.step_was_paused = True
+                if not self.no_eeg_mode:
+                    self.session_saver.add_marker("PAUSED" if self.is_paused else "RESUMED")
                 print("Calibration PAUSED" if self.is_paused else "Calibration RESUMED")
 
         if self.is_paused:
-            if not self.no_eeg_mode and self.step_timer.elapsed() > self.eeg_headset.buffer_size_seconds * 1000:
-                # If paused for too long, we risk overflowing the EEG buffer since we're not reading data during the pause. To prevent this, we can end the calibration if the pause exceeds the buffer size
-                print("[CalibrationState] Buffer overflow during pause — ending calibration")
-                from .main_menu_state import MainMenuState
-                self.flow_controller.change_state(MainMenuState)
             return
 
         elapsed = self.step_timer.elapsed()
@@ -121,36 +120,29 @@ class CalibrationState(FlowState):
         if not self._in_result_phase:
             # Active step phase: CUE / FIXATION / REST
             if elapsed >= self.current_step.duration_ms:
-                label = self.current_step.step_type.value.upper() if not self.step_was_paused else "PAUSED" # Mark paused steps in the data
-                self._save_and_annotate(label, elapsed)
                 if self.current_step.step_type in CLASSIFIABLE:
                     self.classified_as = self._classify()
                     self._in_result_phase = True
                     self.step_timer.restart()
+                    if not self.no_eeg_mode:
+                        self.session_saver.add_marker(f"RESULT_{self.classified_as.value.upper()}")
                     print(f"[CalibrationState] Classified: {self.classified_as.value}")
                 else:
                     self._advance_to_next_step()
         else:
             # Result display phase (only for classifiable steps)
             if elapsed >= self.result_duration_ms:
-                self._save_and_annotate("RESULT", elapsed)
                 self.classified_as = None
                 self._in_result_phase = False
                 self._advance_to_next_step()
-
-    def _save_and_annotate(self, label: str, duration_ms: int) -> None:
-        if not self.no_eeg_mode:
-            eeg_data = self.eeg_headset.get_output(seconds=duration_ms / 1000)
-            self.session_saver.save_step(eeg_data, label, duration_ms / 1000)
-            self.eeg_headset.annotate("border")
 
     def _advance_to_next_step(self) -> None:
         self.completed_steps += 1
         self.current_step = self.sample_manager.get_next()
         self.step_timer.restart()
         self.step_was_paused = False
-        if self.current_step and self.current_step.step_type in CLASSIFIABLE:
-            self.eeg_headset.annotate(self.current_step.step_type.value)
+        if self.current_step and not self.no_eeg_mode:
+            self.session_saver.add_marker(self.current_step.step_type.value.upper())
 
     def _classify(self) -> ExperimentStepType:
         # TODO: pass eeg_data to actual classifier
@@ -160,9 +152,11 @@ class CalibrationState(FlowState):
     def exit(self):
         if self.session_saver is not None:
             try:
-                self.session_saver.export_to_edf()
+                self.eeg_headset.remove_subscriber(self.session_saver.on_chunk)
+                self.session_saver.stop_session()
             except Exception as e:
-                print(f"[CalibrationState] Error exporting EDF: {e}")
+                print(f"[CalibrationState] Error stopping session: {e}")
+
         self.sample_manager = None
         self.current_step = None
         self.classified_as = None

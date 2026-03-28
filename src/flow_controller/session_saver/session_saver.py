@@ -5,92 +5,159 @@ import numpy as np
 import pyedflib
 
 
+# Standard physical range for EEG signals in µV.
+# BrainAccess outputs data in µV; this range covers typical EEG amplitudes.
+PHYS_MIN = -3200.0
+PHYS_MAX = 3200.0
+
+
 class SessionSaver:
     """
-    A class to save session data and labels to a specified directory.
-    All trial data is appended to a single data.csv file, with labels in labels.csv.
-    On finalize(), converts CSV data to EDF + EDF events (MNE/BIDS TSV).
+    Continuously saves EEG data directly to EDF+ format.
+
+    Usage:
+        saver = SessionSaver(channel_labels, sample_rate, output_dir)
+        saver.start_session()
+        headset.add_subscriber(saver.on_chunk)   # called every poll()
+        saver.add_marker("LEFT_HAND")            # called by state on step transitions
+        ...
+        headset.remove_subscriber(saver.on_chunk)
+        saver.stop_session()                     # finalizes EDF + writes events TSV
     """
 
-    def __init__(self, channel_labels: list[str], sample_rate: int, output_dir: Path = Path("sessions")):
+    def __init__(self, channel_labels: list[str], sample_rate: int, output_dir: Path = Path("sessions"), session_name: str | None = None) -> None:
         self.channel_labels = channel_labels
         self.sample_rate = sample_rate
+        self.n_channels = len(channel_labels)
 
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        self.session_dir = output_dir / f"{timestamp}"
+        folder_name = session_name if session_name else datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.session_dir = output_dir / folder_name
         self.session_dir.mkdir(parents=True, exist_ok=True)
 
-        with open(self.session_dir / "data.csv", "w") as f:
-            f.write("# " + ",".join(channel_labels) + "\n")
+        self._writer: pyedflib.EdfWriter | None = None
+        self._total_samples: int = 0
+        self._markers: list[tuple[int, str]] = []
 
-        print(f"[SessionSaver] Saving to: {self.session_dir}")
+        # Internal buffer to accumulate samples until a full data record is ready.
+        # EDF writes data in fixed-size records (1 second = sample_rate samples).
+        self._chunk_buffer: np.ndarray | None = None
+        self._buffer_pos: int = 0
 
-    def save_step(self, data: np.ndarray, label: str, duration: float) -> None:
-        """Append trial data to data.csv and label+duration to labels.csv."""
-        with open(self.session_dir / "data.csv", "a") as f:
-            np.savetxt(f, data.T, delimiter=",", fmt="%.6f")
-        with open(self.session_dir / "labels.csv", "a") as f:
-            f.write(f"{label},{duration}\n")
-
-    def export_to_edf(self) -> None:
-        """Convert accumulated CSV data to EDF + events TSV (MNE/BIDS style)."""
-        data_path = self.session_dir / "data.csv"
-        labels_path = self.session_dir / "labels.csv"
-
-        # Load EEG data: (n_samples, n_channels)
-        data = np.loadtxt(data_path, delimiter=",")
-        if data.ndim == 1:
-            data = data.reshape(1, -1)
-        n_samples, n_channels = data.shape
-
-        # Write EDF via pyedflib
+    def start_session(self) -> None:
+        """Open EDF+ file and write channel headers."""
         edf_path = self.session_dir / "session.edf"
-        writer = pyedflib.EdfWriter(str(edf_path), n_channels, file_type=pyedflib.FILETYPE_EDFPLUS)
-        try:
-            headers = []
-            for i, label in enumerate(self.channel_labels):
-                channel_data = data[:, i]
-                phys_min = float(channel_data.min())
-                phys_max = float(channel_data.max())
-                if phys_min == phys_max:
-                    phys_max = phys_min + 1.0
+        self._writer = pyedflib.EdfWriter(str(edf_path), self.n_channels, file_type=pyedflib.FILETYPE_EDFPLUS)
 
-                headers.append({
-                    "label": label,
-                    "dimension": "uV",
-                    "sample_frequency": self.sample_rate,
-                    "physical_min": phys_min,
-                    "physical_max": phys_max,
-                    "digital_min": -32768,
-                    "digital_max": 32767,
-                    "transducer": "",
-                    "prefilter": "",
-                })
+        headers = []
+        for label in self.channel_labels:
+            headers.append({
+                "label": label,
+                "dimension": "uV",
+                "sample_frequency": self.sample_rate,
+                "physical_min": PHYS_MIN,
+                "physical_max": PHYS_MAX,
+                "digital_min": -32768,
+                "digital_max": 32767,
+                "transducer": "",
+                "prefilter": "",
+            })
 
-            writer.setSignalHeaders(headers)
-            writer.writeSamples([data[:, i] for i in range(n_channels)])
-        finally:
-            writer.close()
+        self._writer.setSignalHeaders(headers)
+        self._chunk_buffer = np.zeros((self.n_channels, self.sample_rate), dtype=float)
+        self._buffer_pos = 0
+        self._total_samples = 0
+        self._markers = []
 
-        print(f"[SessionSaver] Exported EDF: {edf_path} ({n_samples} samples, {n_channels} channels)")
+        print(f"[SessionSaver] Session started, saving to: {self.session_dir}")
 
-        # Write events TSV (MNE/BIDS style)
-        if not labels_path.exists():
+    def on_chunk(self, chunk: np.ndarray) -> None:
+        """
+        Subscriber callback — receives each chunk from EEGHeadset.poll().
+
+        Args:
+            chunk: EEG data of shape (n_channels, n_samples).
+        """
+        if self._writer is None:
             return
 
-        events_path = self.session_dir / "session.edf.events"
-        onset = 0.0
+        n_samples = chunk.shape[1]
+        written = 0
+
+        while written < n_samples:
+            space_left = self.sample_rate - self._buffer_pos
+            to_copy = min(space_left, n_samples - written)
+
+            self._chunk_buffer[:, self._buffer_pos:self._buffer_pos + to_copy] = chunk[:, written:written + to_copy]
+            self._buffer_pos += to_copy
+            written += to_copy
+
+            if self._buffer_pos >= self.sample_rate:
+                self._flush_record()
+
+    def add_marker(self, label: str) -> None:
+        """Record a marker at the current sample position."""
+        self._markers.append((self._total_samples + self._buffer_pos, label))
+
+    def stop_session(self) -> None:
+        """Flush remaining data, write annotations, close EDF, and generate events TSV."""
+        if self._writer is None:
+            return
+
+        # Flush any remaining buffered samples as a partial record
+        if self._buffer_pos > 0:
+            self._flush_partial_record()
+
+        # Write all markers as EDF+ annotations
+        for sample_idx, label in self._markers:
+            onset_sec = sample_idx / self.sample_rate
+            self._writer.writeAnnotation(onset_sec, -1, label)
+
+        self._writer.close()
+        self._writer = None
+
+        total_seconds = self._total_samples / self.sample_rate
+        print(f"[SessionSaver] EDF saved: {self._total_samples} samples ({total_seconds:.1f}s), {len(self._markers)} markers")
+
+        self._write_events_tsv()
+
+    def _flush_record(self) -> None:
+        """Write one full data record (1 second) to EDF."""
+        self._writer.writeSamples(
+            [self._chunk_buffer[ch, :] for ch in range(self.n_channels)]
+        )
+        self._total_samples += self.sample_rate
+        self._buffer_pos = 0
+
+    def _flush_partial_record(self) -> None:
+        """Write remaining samples (less than one full record) to EDF."""
+        # writeSamples expects exactly sample_rate samples per channel per record.
+        # Pad with zeros to fill the record, but track real sample count.
+        real_samples = self._buffer_pos
+        if real_samples < self.sample_rate:
+            self._chunk_buffer[:, real_samples:] = 0.0
+
+        self._writer.writeSamples(
+            [self._chunk_buffer[ch, :] for ch in range(self.n_channels)]
+        )
+        self._total_samples += real_samples
+        self._buffer_pos = 0
+
+    def _write_events_tsv(self) -> None:
+        """Generate BIDS-style events TSV from markers."""
+        if not self._markers:
+            return
+
+        events_path = self.session_dir / "events.tsv"
         with open(events_path, "w") as f:
             f.write("onset\tduration\ttrial_type\n")
-            with open(labels_path, "r") as lf:
-                for line in lf:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    parts = line.split(",")
-                    label = parts[0]
-                    duration = float(parts[1])
-                    f.write(f"{onset:.3f}\t{duration:.3f}\t{label}\n")
-                    onset += duration
+            for i, (sample_idx, label) in enumerate(self._markers):
+                onset = sample_idx / self.sample_rate
+                # Duration = time until next marker, or until end of recording
+                if i + 1 < len(self._markers):
+                    next_sample_idx = self._markers[i + 1][0]
+                else:
+                    next_sample_idx = self._total_samples
+                duration = (next_sample_idx - sample_idx) / self.sample_rate
+                f.write(f"{onset:.3f}\t{duration:.3f}\t{label}\n")
 
-        print(f"[SessionSaver] Exported events: {events_path}")
+        print(f"[SessionSaver] Events TSV saved: {events_path}")

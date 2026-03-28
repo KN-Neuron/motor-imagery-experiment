@@ -21,6 +21,7 @@ class ExperimentConfig:
     cue_ms: int
     rest_ms: int
     cues: list[str] | None = None
+    session_name: str | None = None
 
 @dataclass
 class CalibrationConfig:
@@ -31,6 +32,7 @@ class CalibrationConfig:
     rest_ms: int
     result_ms: int
     cues: list[str] | None = None
+    session_name: str | None = None
 
 # Loader helpers
 

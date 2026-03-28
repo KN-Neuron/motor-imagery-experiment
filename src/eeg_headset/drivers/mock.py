@@ -110,12 +110,19 @@ class MockDriver:
         # samples represent. This prevents fractional-sample time drift
         self._last_read_time += n_samples / self._sampling_rate
 
-        # Logic ported over from the original implementation.
-        base = np.arange(
+        # Generate realistic EEG-like data: sine waves + noise, in µV range
+        t = np.arange(
             self._total_generated_samples,
             self._total_generated_samples + n_samples,
             dtype=float,
-        )
+        ) / self._sampling_rate
         self._total_generated_samples += n_samples
 
-        return np.vstack([base + ch for ch in range(self._channel_count)])
+        channels = []
+        for ch in range(self._channel_count):
+            freq = 8.0 + ch * 2.0  # alpha-band frequencies per channel
+            signal = 50.0 * np.sin(2 * np.pi * freq * t)  # ~50 µV sine
+            noise = np.random.default_rng(seed=None).normal(0, 10.0, n_samples)  # ~10 µV noise
+            channels.append(signal + noise)
+
+        return np.vstack(channels)
