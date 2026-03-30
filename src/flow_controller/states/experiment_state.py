@@ -103,11 +103,6 @@ class ExperimentState(FlowState):
                 self.flow_controller.change_state(MainMenuState)
                 return
 
-            elif event == ExperimentEvent.QUIT:
-                print("[ExperimentState] Quit requested")
-                self.flow_controller.running = False
-                return
-
             elif event == ExperimentEvent.PAUSE:
                 self.is_paused = not self.is_paused
                 self.step_was_paused = True

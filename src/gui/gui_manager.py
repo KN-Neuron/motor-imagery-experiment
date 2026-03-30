@@ -81,10 +81,6 @@ class GUIManager:
     def on_quit_requested(self) -> None:
         if self.current_view == self.main_menu_view:
             self.main_menu_view.pending_events.append(MainMenuEvent.QUIT)
-        elif self.current_view == self.experiment_view:
-            self.experiment_view.pending_events.append(ExperimentEvent.QUIT)
-        elif self.current_view == self.calibration_view:
-            self.calibration_view.pending_events.append(CalibrationEvent.QUIT)
 
 # Main menu methods
 
@@ -104,6 +100,7 @@ class GUIManager:
     def show_experiment(self) -> None:
         self.current_view = self.experiment_view
         self.stacked_widget.setCurrentWidget(self.experiment_view)
+        self.experiment_view.is_paused = False
         self.sidebar.reset_pause()
         self.sidebar.set_buttons_visibility(show_pause=True, show_back=False)
 
@@ -123,6 +120,7 @@ class GUIManager:
     def show_calibration(self) -> None:
         self.current_view = self.calibration_view
         self.stacked_widget.setCurrentWidget(self.calibration_view)
+        self.calibration_view.is_paused = False
         self.sidebar.reset_pause()
         self.sidebar.set_buttons_visibility(show_pause=True)
 

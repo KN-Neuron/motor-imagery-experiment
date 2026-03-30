@@ -12,7 +12,6 @@ from .view import View
 class CalibrationEvent(Enum):
     ABORT = "abort"
     PAUSE = "pause"
-    QUIT = "quit"
 
 class CalibrationView(View):
     def __init__(self) -> None:
@@ -108,7 +107,7 @@ class CalibrationView(View):
         text_y = int(h * 0.42) + painter.fontMetrics().ascent()
         painter.drawText((w - action_w) // 2, text_y, label)
 
-        if self.step_type == ExperimentStepType.SSVEP_FOCUS:
+        if self.step_type == ExperimentStepType.SSVEP_FOCUS and not self.is_paused:
             sin_factor = math.sin(2 * math.pi * 10 * self.ssvep_display_arg / 100)
             sin_factor = 0 if sin_factor < 0.5 else sin_factor # Creates a "blinking" effect where the dot is fully visible for half the time and invisible for the other half
             painter.save()
