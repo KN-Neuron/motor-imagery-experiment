@@ -1,10 +1,11 @@
-import os
 import math
+import os
+from enum import Enum
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QColor, QFont, QPixmap
-from enum import Enum
+from PyQt6.QtGui import QPainter, QColor, QFont
 from src.sample_manager.experiment_step_type import ExperimentStepType
+from .utils import get_pixmap_cache
 from .view import View
 
 
@@ -84,7 +85,7 @@ class ExperimentView(View):
         if self.step_type == ExperimentStepType.FIXATION:
             self._draw_fixation_cross(painter, w, h)
         else:
-            color, text, img_path = STEP_DISPLAY.get(
+            color, text, _ = STEP_DISPLAY.get(
                 self.step_type,
                 (QColor(255, 255, 255), self.step_type.value.upper(), None)
             )
@@ -110,15 +111,8 @@ class ExperimentView(View):
                 self.ssvep_display_arg = (self.ssvep_display_arg + 1) % 100 # Increment to trigger animation changes
 
             else:
-                # Draw image if available
-                if img_path is not None and os.path.exists(img_path):
-                    pixmap = QPixmap(img_path)
-                    # Scale image to fit nicely below the text (max width 300, max height 180)
-                    max_img_w, max_img_h = 300, 180
-                    img_w = min(pixmap.width(), max_img_w)
-                    img_h = min(pixmap.height(), max_img_h)
-                    scaled_pixmap = pixmap.scaled(img_w, img_h, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                    # Center horizontally, place below text
+                scaled_pixmap = get_pixmap_cache(STEP_DISPLAY).get(self.step_type)
+                if scaled_pixmap is not None:
                     img_x = (w - scaled_pixmap.width()) // 2
                     img_y = text_y + 30
                     painter.drawPixmap(img_x, img_y, scaled_pixmap)
