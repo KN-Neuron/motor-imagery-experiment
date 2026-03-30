@@ -4,7 +4,8 @@ import sys
 from src.gui import GUIManager
 from src.eeg_headset.headset_config import HeadsetConfig, HeadsetModel
 from src.eeg_headset.eeg_headset import EEGHeadset
-from src.eeg_headset.drivers import MockDriver
+# from src.eeg_headset.drivers import MockDriver
+from src.eeg_headset.drivers import MockDriver, BrainAccessDriver
 from src.flow_controller import FlowController
 
 
@@ -13,9 +14,10 @@ def main() -> None:
     gui_manager = GUIManager()
     
     driver_config = HeadsetConfig(
-        model=HeadsetModel.MIDI_16CH_BASE, 
+        model=HeadsetModel.HALO_4CH, 
         config_path="brainaccess_headsets_config.yaml")
     driver = MockDriver(config=driver_config)
+    # driver = BrainAccessDriver(config=driver_config)
     headset = EEGHeadset(driver)
 
     flow_controller = FlowController(gui_manager, headset)

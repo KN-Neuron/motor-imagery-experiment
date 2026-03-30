@@ -2,10 +2,9 @@ import threading
 import time
 
 import numpy as np
-from numpy import ndarray
 from ..drivers import MockDriver
 from ..headset_config import HeadsetConfig, HeadsetModel
-from .. import EEGHeadset
+from ..eeg_headset import EEGHeadset
 
 
 def main() -> None:
@@ -21,7 +20,7 @@ def main() -> None:
     eeg.start()
     eeg.annotate("start")
 
-    samples = ndarray(shape=(driver_config.n_channels, 0), dtype=float)
+    samples = np.ndarray(shape=(driver_config.n_channels, 0), dtype=float)
 
     def poll_continuously() -> None:
         while True:

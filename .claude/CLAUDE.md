@@ -10,7 +10,7 @@ Aplikacja desktopowa (PyQt6) do eksperymentów EEG — zbieranie danych z headse
 
 ## Stack technologiczny
 
-- Python 3.13+, PyQt6, BrainAccess SDK (`brainaccess` v3.6.1)
+- Python 3.13+, **Poetry** (zarządzanie zależnościami i uruchamianie), PyQt6, BrainAccess SDK (`brainaccess` v3.6.1)
 - Dane: `pyedflib` (EDF+), NumPy, format BIDS
 - Konfiguracja: YAML (`trials_config.yaml`)
 - Jakość kodu: Black, Flake8, MyPy, pytest, pre-commit hooks
@@ -29,7 +29,7 @@ src/
 ├── flow_controller/
 │   ├── flow_controller.py         # Maszyna stanów, tick co 10ms (100 FPS)
 │   ├── states/                    # FlowState (abstrakcja), MainMenuState, CalibrationState, ExperimentState
-│   └── session_saver/             # Zapis CSV → konwersja do EDF + BIDS events TSV
+│   └── session_saver/             # Ciągły zapis EEG do EDF (subscriber pattern)
 ├── eeg_headset/
 │   ├── eeg_headset.py             # Interfejs headsetu z ring bufferem
 │   ├── ring_buffer.py             # Bufor kołowy na próbki EEG
@@ -52,13 +52,14 @@ Inne ważne pliki:
 - **Event Queue** — widoki GUI trzymają `pending_events`, stany pollują je w `tick()` (zamiast sygnałów Qt)
 - **Driver Protocol** — `HeadsetDriver` jako protokół z implementacjami `BrainAccessDriver` i `MockDriver`
 - **Strategy Pattern** — `StratifiedSampler` / `RandomSampler` do generowania triali
+- **Subscriber Pattern** — `SessionSaver` rejestruje się jako subscriber w `EEGHeadset` i zapisuje każdy chunk EEG do EDF na bieżąco. Stany tylko dodają markery (`add_marker()`), nie zarządzają danymi.
 - **Custom painting** — GUI renderowane przez `paintEvent()` z QPainter, bez plików .ui
 
 ## Uruchamianie
 
 ```bash
-pip install -e .
-python -m src.main
+poetry install
+poetry run python -m src.main
 ```
 
 Tryb bez headsetu: Alt+klik na przycisku Start Experiment/Calibration w menu.
@@ -66,18 +67,18 @@ Tryb bez headsetu: Alt+klik na przycisku Start Experiment/Calibration w menu.
 ## Testy i jakość kodu
 
 ```bash
-pytest                  # wszystkie testy
-pytest -m unit          # unit testy
-black src/ tests/       # formatowanie
-flake8 src/ tests/      # lint
-mypy src/               # type check
+poetry run pytest                  # wszystkie testy
+poetry run pytest -m unit          # unit testy
+poetry run black src/ tests/       # formatowanie
+poetry run flake8 src/ tests/      # lint
+poetry run mypy src/               # type check
 ```
 
 ## Konwencje
 
 - Pełne type hints (MyPy z `disallow_untyped_defs`)
 - Logowanie przez `print(f"[ModuleName] ...")`
-- Język kodu: angielski; commity: polski
+- Język kodu: angielski; commity: polski; dokumentacja (README, komentarze): angielski
 - Ciemny motyw GUI (dark purple/blue)
 - Sesje autozapisywane z timestampem do `sessions/`
 - Pauza/wznowienie wspierane w kalibracji i eksperymencie
