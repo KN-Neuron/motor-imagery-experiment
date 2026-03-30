@@ -25,6 +25,14 @@ class EEGHeadset:
         self._last_annotation_index: Optional[int] = None
 
     @property
+    def sample_rate(self) -> int:
+        return self._driver.sampling_rate
+
+    @property
+    def channel_labels(self) -> list[str]:
+        return list(self._driver.config.channel_map.values())
+
+    @property
     def buffer_size_seconds(self) -> int:
         return self._buffer.capacity // self._driver.sampling_rate
 

@@ -5,7 +5,7 @@ from enum import Enum
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPainter, QColor, QFont
 from src.sample_manager.experiment_step_type import ExperimentStepType
-from .utils import get_pixmap_cache
+from .utils.pixmap_cache import get_pixmap_cache
 from .view import View
 
 

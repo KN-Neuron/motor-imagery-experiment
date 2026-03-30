@@ -29,12 +29,12 @@ class ExperimentState(FlowState):
     @override
     def enter(self):
         """Initialize experiment with SampleManager."""
+        from .main_menu_state import MainMenuState
 
         self.no_eeg_mode = not self.eeg_headset.is_connected()
 
         config = self.gui_manager.show_experiment_config_dialog()
         if config is None:
-            from .main_menu_state import MainMenuState
             self.flow_controller.change_state(MainMenuState)
             return
 
@@ -52,15 +52,13 @@ class ExperimentState(FlowState):
         self.is_paused = False
 
         if not self.no_eeg_mode:
-            channel_labels = list(self.eeg_headset._driver._config.channel_map.values())
-            sample_rate = self.eeg_headset._driver.sampling_rate
-            self.session_saver = SessionSaver(channel_labels=channel_labels, sample_rate=sample_rate, output_dir=Path("sessions/experiments"), session_name=config.session_name)
             try:
                 self.eeg_headset.start()
             except Exception as e:
                 print(f"[ExperimentState] Error starting EEG headset: {e}")
                 self.flow_controller.change_state(MainMenuState)
                 return
+            self.session_saver = SessionSaver(channel_labels=self.eeg_headset.channel_labels, sample_rate=self.eeg_headset.sample_rate, output_dir=Path("sessions/experiments"), session_name=config.session_name)
             self.session_saver.start_session()
             self.eeg_headset.add_subscriber(self.session_saver.on_chunk)
 
