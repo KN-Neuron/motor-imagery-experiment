@@ -1,8 +1,9 @@
 from enum import Enum
-from PyQt6.QtWidgets import QWidget, QApplication
+from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt, QRect
-from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont, QKeySequence, QShortcut
+from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont
 from ..shared.button import Button
+from .view import View
 import os
 
 
@@ -11,22 +12,17 @@ class MainMenuEvent(Enum):
     CALIBRATION_BTN_CLICKED = "calibration_btn_clicked"
     QUIT = "quit"
 
-class MainMenuView(QWidget):
+class MainMenuView(View):
     def __init__(self) -> None:
-        super().__init__()
         self.experiment_btn: Button = None
         self.calibration_btn: Button = None
-        self.pending_events = []
         self.headset_connected = False
-
-        self._setup_ui()
+        super().__init__()
 
     def _setup_ui(self):
         self.setStyleSheet("background-color: rgb(30, 30, 40);")
 
-        self.q_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Q), self)
-        self.q_shortcut.activated.connect(lambda: self.pending_events.append(MainMenuEvent.QUIT))
-        self.q_shortcut.setEnabled(False)
+        self._register_shortcut(Qt.Key.Key_Q, lambda: self.pending_events.append(MainMenuEvent.QUIT))
 
         def on_experiment_click():
             mods = QApplication.keyboardModifiers()
@@ -90,7 +86,7 @@ class MainMenuView(QWidget):
 
         # Draw KN NEURON logo and text
         try:
-            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'imgs', 'kn_neuron_logo.png')
+            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '../../res/imgs', 'kn_neuron_logo.png')
             logo_pixmap = QPixmap(logo_path).scaled(40, 40,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation
@@ -111,6 +107,7 @@ class MainMenuView(QWidget):
             painter.drawText(logo_x + 40 + 10, logo_y + 8 + kn_metrics.ascent(), kn_text)
         except Exception:
             pass
+        
         # Draw headset status
         status_font = QFont('Arial', 28)
         painter.setFont(status_font)
@@ -132,15 +129,3 @@ class MainMenuView(QWidget):
         painter.setPen(status_color)
         painter.drawText(status_x + status_width_1, status_y, status_text_2)
 
-    def get_pending_events(self) -> list[MainMenuEvent]:
-        events = self.pending_events.copy()
-        self.pending_events.clear()
-        return events
-
-    def showEvent(self, event):
-        super().showEvent(event)
-        self.q_shortcut.setEnabled(True)
-
-    def hideEvent(self, event):
-        super().hideEvent(event)
-        self.q_shortcut.setEnabled(False)

@@ -1,9 +1,21 @@
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QComboBox, QPushButton, QFrame
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox, QComboBox,
+    QPushButton, QFrame, QLineEdit, QCheckBox
 )
 from PyQt6.QtGui import QFont
 
 from src.config.config import CalibrationConfig, ExperimentConfig
+from src.sample_manager.experiment_step_type import CLASSIFIABLE
+
+# Human-readable labels for cue types
+_CUE_DISPLAY_NAMES = {
+    "double_blink": "Double blink",
+    "left_hand_clench": "Left hand clench",
+    "right_hand_clench": "Right hand clench",
+    "jaw_clench": "Jaw clench",
+    "head_movement": "Head movement",
+    "ssvep_focus": "SSVEP focus",
+}
 
 _DIALOG_STYLE = """
     QDialog {
@@ -47,6 +59,35 @@ _DIALOG_STYLE = """
         background-color: rgb(40, 40, 58);
         color: rgb(220, 220, 240);
         selection-background-color: rgb(70, 90, 160);
+    }
+    QLineEdit {
+        background-color: rgb(40, 40, 58);
+        color: rgb(220, 220, 240);
+        border: 1px solid rgba(100, 100, 150, 120);
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 14px;
+        font-family: 'Segoe UI', Arial;
+    }
+    QCheckBox {
+        color: rgb(200, 200, 220);
+        font-family: 'Segoe UI', Arial;
+        font-size: 12px;
+        spacing: 6px;
+    }
+    QCheckBox::indicator {
+        width: 16px;
+        height: 16px;
+        border: 1px solid rgba(100, 100, 150, 120);
+        border-radius: 3px;
+        background-color: rgb(40, 40, 58);
+    }
+    QCheckBox::indicator:checked {
+        background-color: rgba(70, 90, 180, 200);
+        border-color: rgba(100, 120, 220, 150);
+    }
+    QCheckBox::indicator:hover {
+        border-color: rgba(120, 140, 200, 180);
     }
 """
 
@@ -108,6 +149,132 @@ def _separator() -> QFrame:
     return sep
 
 
+def _make_cue_checkboxes(layout: QVBoxLayout, enabled_cues: list[str] | None) -> dict[str, QCheckBox]:
+    """Create checkboxes for all classifiable cue types. Returns {cue_value: checkbox}."""
+    all_cue_values = [step.value for step in CLASSIFIABLE]
+    enabled_set = set(c.lower() for c in enabled_cues) if enabled_cues is not None else set(all_cue_values)
+
+    checkboxes = {}
+    for cue_value in all_cue_values:
+        display_name = _CUE_DISPLAY_NAMES.get(cue_value, cue_value)
+        cb = QCheckBox(display_name)
+        cb.setChecked(cue_value in enabled_set)
+        layout.addWidget(cb)
+        checkboxes[cue_value] = cb
+
+    return checkboxes
+
+
+def _get_selected_cues(checkboxes: dict[str, QCheckBox]) -> list[str]:
+    """Return list of cue values for checked checkboxes."""
+    return [value for value, cb in checkboxes.items() if cb.isChecked()]
+
+
+class ExperimentConfigDialog(QDialog):
+    """Dialog for configuring an experiment session; pre-fills fields from ExperimentConfig if provided."""
+
+    def __init__(self, initial: ExperimentConfig | None = None, parent=None):
+        super().__init__(parent)
+        self._initial = initial
+        self._config: ExperimentConfig | None = None
+        self._setup_ui()
+
+    def _setup_ui(self):
+        """Build and lay out all widgets."""
+        self.setWindowTitle("Experiment Setup")
+        self.setFixedSize(390, 600)
+        self.setStyleSheet(_DIALOG_STYLE)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
+
+        title = QLabel("Experiment Configuration")
+        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        title.setStyleSheet("color: rgb(180, 190, 255);")
+        layout.addWidget(title)
+        layout.addWidget(_separator())
+
+        ini = self._initial
+
+        self.trials_spinbox = _make_spinbox(1, 50, 1, ini.trials_per_class if ini else 5)
+        layout.addLayout(_make_row("Trials per class:", self.trials_spinbox))
+
+        self.strategy_combo = QComboBox()
+        self.strategy_combo.addItem("Stratified", "stratified")
+        self.strategy_combo.addItem("Random", "random")
+        self.strategy_combo.setFixedWidth(130)
+        if ini:
+            idx = self.strategy_combo.findData(ini.strategy)
+            if idx >= 0:
+                self.strategy_combo.setCurrentIndex(idx)
+        layout.addLayout(_make_row("Sampling strategy:", self.strategy_combo))
+
+        layout.addWidget(_separator())
+
+        self.fixation_ms = _make_spinbox(100, 10000, 100, ini.fixation_ms if ini else 2000)
+        layout.addLayout(_make_row("Fixation duration (ms):", self.fixation_ms))
+
+        self.cue_ms = _make_spinbox(100, 10000, 100, ini.cue_ms if ini else 4000)
+        layout.addLayout(_make_row("Cue duration (ms):", self.cue_ms))
+
+        self.rest_ms = _make_spinbox(100, 10000, 100, ini.rest_ms if ini else 1500)
+        layout.addLayout(_make_row("Rest duration (ms):", self.rest_ms))
+
+        layout.addWidget(_separator())
+
+        cues_label = QLabel("Cues:")
+        cues_label.setFont(QFont("Segoe UI", 11))
+        layout.addWidget(cues_label)
+
+        self._cue_checkboxes = _make_cue_checkboxes(layout, ini.cues if ini else None)
+
+        layout.addWidget(_separator())
+
+        self.session_name_edit = QLineEdit()
+        self.session_name_edit.setPlaceholderText("auto (timestamp)")
+        self.session_name_edit.setFixedWidth(180)
+        if ini and ini.session_name:
+            self.session_name_edit.setText(ini.session_name)
+        layout.addLayout(_make_row("Session name:", self.session_name_edit))
+
+        layout.addStretch()
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setFixedHeight(36)
+        cancel_btn.setStyleSheet(_CANCEL_STYLE)
+        cancel_btn.clicked.connect(self.reject)
+
+        start_btn = QPushButton("Start Experiment")
+        start_btn.setFixedHeight(36)
+        start_btn.setStyleSheet(_START_STYLE)
+        start_btn.clicked.connect(self._on_start)
+
+        btn_row.addWidget(cancel_btn)
+        btn_row.addWidget(start_btn)
+        layout.addLayout(btn_row)
+
+    def _on_start(self):
+        """Collect widget values into an ExperimentConfig and accept the dialog."""
+        name = self.session_name_edit.text().strip() or None
+        self._config = ExperimentConfig(
+            trials_per_class=self.trials_spinbox.value(),
+            strategy=self.strategy_combo.currentData(),
+            fixation_ms=self.fixation_ms.value(),
+            cue_ms=self.cue_ms.value(),
+            rest_ms=self.rest_ms.value(),
+            cues=_get_selected_cues(self._cue_checkboxes),
+            session_name=name,
+        )
+        self.accept()
+
+    def get_config(self) -> ExperimentConfig | None:
+        """Return the confirmed config, or None if the dialog was cancelled."""
+        return self._config
+
 class CalibrationConfigDialog(QDialog):
     """Dialog for configuring a calibration session; pre-fills fields from CalibrationConfig if provided."""
 
@@ -120,7 +287,7 @@ class CalibrationConfigDialog(QDialog):
     def _setup_ui(self):
         """Build and lay out all widgets."""
         self.setWindowTitle("Calibration Setup")
-        self.setFixedSize(390, 430)
+        self.setFixedSize(390, 640)
         self.setStyleSheet(_DIALOG_STYLE)
 
         layout = QVBoxLayout(self)
@@ -162,6 +329,23 @@ class CalibrationConfigDialog(QDialog):
         self.result_ms = _make_spinbox(100, 10000, 100, ini.result_ms if ini else 2000)
         layout.addLayout(_make_row("Result duration (ms):", self.result_ms))
 
+        layout.addWidget(_separator())
+
+        cues_label = QLabel("Cues:")
+        cues_label.setFont(QFont("Segoe UI", 11))
+        layout.addWidget(cues_label)
+
+        self._cue_checkboxes = _make_cue_checkboxes(layout, ini.cues if ini else None)
+
+        layout.addWidget(_separator())
+
+        self.session_name_edit = QLineEdit()
+        self.session_name_edit.setPlaceholderText("auto (timestamp)")
+        self.session_name_edit.setFixedWidth(180)
+        if ini and ini.session_name:
+            self.session_name_edit.setText(ini.session_name)
+        layout.addLayout(_make_row("Session name:", self.session_name_edit))
+
         layout.addStretch()
 
         btn_row = QHBoxLayout()
@@ -183,6 +367,7 @@ class CalibrationConfigDialog(QDialog):
 
     def _on_start(self):
         """Collect widget values into a CalibrationConfig and accept the dialog."""
+        name = self.session_name_edit.text().strip() or None
         self._config = CalibrationConfig(
             trials_per_class=self.trials_spinbox.value(),
             strategy=self.strategy_combo.currentData(),
@@ -190,95 +375,11 @@ class CalibrationConfigDialog(QDialog):
             cue_ms=self.cue_ms.value(),
             rest_ms=self.rest_ms.value(),
             result_ms=self.result_ms.value(),
+            cues=_get_selected_cues(self._cue_checkboxes),
+            session_name=name,
         )
         self.accept()
 
     def get_config(self) -> CalibrationConfig | None:
-        """Return the confirmed config, or None if the dialog was cancelled."""
-        return self._config
-
-
-class ExperimentConfigDialog(QDialog):
-    """Dialog for configuring an experiment session; pre-fills fields from ExperimentConfig if provided."""
-
-    def __init__(self, initial: ExperimentConfig | None = None, parent=None):
-        super().__init__(parent)
-        self._initial = initial
-        self._config: ExperimentConfig | None = None
-        self._setup_ui()
-
-    def _setup_ui(self):
-        """Build and lay out all widgets."""
-        self.setWindowTitle("Experiment Setup")
-        self.setFixedSize(390, 390)
-        self.setStyleSheet(_DIALOG_STYLE)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 20)
-        layout.setSpacing(12)
-
-        title = QLabel("Experiment Configuration")
-        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        title.setStyleSheet("color: rgb(180, 190, 255);")
-        layout.addWidget(title)
-        layout.addWidget(_separator())
-
-        ini = self._initial
-
-        self.trials_spinbox = _make_spinbox(1, 50, 1, ini.trials_per_class if ini else 5)
-        layout.addLayout(_make_row("Trials per class:", self.trials_spinbox))
-
-        self.strategy_combo = QComboBox()
-        self.strategy_combo.addItem("Stratified", "stratified")
-        self.strategy_combo.addItem("Random", "random")
-        self.strategy_combo.setFixedWidth(130)
-        if ini:
-            idx = self.strategy_combo.findData(ini.strategy)
-            if idx >= 0:
-                self.strategy_combo.setCurrentIndex(idx)
-        layout.addLayout(_make_row("Sampling strategy:", self.strategy_combo))
-
-        layout.addWidget(_separator())
-
-        self.fixation_ms = _make_spinbox(100, 10000, 100, ini.fixation_ms if ini else 2000)
-        layout.addLayout(_make_row("Fixation duration (ms):", self.fixation_ms))
-
-        self.cue_ms = _make_spinbox(100, 10000, 100, ini.cue_ms if ini else 4000)
-        layout.addLayout(_make_row("Cue duration (ms):", self.cue_ms))
-
-        self.rest_ms = _make_spinbox(100, 10000, 100, ini.rest_ms if ini else 1500)
-        layout.addLayout(_make_row("Rest duration (ms):", self.rest_ms))
-
-        layout.addStretch()
-
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(10)
-
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.setFixedHeight(36)
-        cancel_btn.setStyleSheet(_CANCEL_STYLE)
-        cancel_btn.clicked.connect(self.reject)
-
-        start_btn = QPushButton("Start Experiment")
-        start_btn.setFixedHeight(36)
-        start_btn.setStyleSheet(_START_STYLE)
-        start_btn.clicked.connect(self._on_start)
-
-        btn_row.addWidget(cancel_btn)
-        btn_row.addWidget(start_btn)
-        layout.addLayout(btn_row)
-
-    def _on_start(self):
-        """Collect widget values into an ExperimentConfig and accept the dialog."""
-        self._config = ExperimentConfig(
-            trials_per_class=self.trials_spinbox.value(),
-            strategy=self.strategy_combo.currentData(),
-            fixation_ms=self.fixation_ms.value(),
-            cue_ms=self.cue_ms.value(),
-            rest_ms=self.rest_ms.value(),
-        )
-        self.accept()
-
-    def get_config(self) -> ExperimentConfig | None:
         """Return the confirmed config, or None if the dialog was cancelled."""
         return self._config

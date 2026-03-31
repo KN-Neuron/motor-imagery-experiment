@@ -1,44 +1,32 @@
 from enum import Enum
-from PyQt6.QtWidgets import QWidget
+import math
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QColor, QFont, QKeySequence, QShortcut
+from PyQt6.QtGui import QPainter, QColor, QFont
 
 from src.sample_manager.experiment_step_type import ExperimentStepType
+from .experiment_view import STEP_DISPLAY
+from .utils.pixmap_cache import get_pixmap_cache
+from .view import View
 
 
 class CalibrationEvent(Enum):
     ABORT = "abort"
     PAUSE = "pause"
-    QUIT = "quit"
 
-STEP_DISPLAY = {
-    ExperimentStepType.DOUBLE_BLINK:   (QColor(100, 200, 255), "DOUBLE BLINK"),
-    ExperimentStepType.LEFT_HAND:      (QColor(255, 150, 150), "LEFT HAND CLENCH"),
-    ExperimentStepType.RIGHT_HAND:     (QColor(150, 255, 150), "RIGHT HAND CLENCH"),
-    ExperimentStepType.JAW_CLENCH:     (QColor(255, 200, 100), "JAW CLENCH"),
-    ExperimentStepType.HEAD_MOVEMENT:  (QColor(200, 150, 255), "HEAD MOVEMENT"),
-    ExperimentStepType.SSVEP_FOCUS:    (QColor(255, 255, 150), "SSVEP FOCUS"),
-}
-
-class CalibrationView(QWidget):
+class CalibrationView(View):
     def __init__(self) -> None:
-        super().__init__()
-        self.pending_events = []
         self.step_type: ExperimentStepType | None = None
         self.classified_as: ExperimentStepType | None = None
         self.no_eeg_mode: bool = False
         self.is_paused = False
         self.progress_percent: float = 0.0
-
-        self._setup_ui()
+        self.ssvep_display_arg: int = 0
+        super().__init__()
 
     def _setup_ui(self):
         self.setStyleSheet("background-color: rgb(20, 20, 35);")
 
-        # ESC shortcut enabled/disabled via showEvent/hideEvent
-        self.esc_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
-        self.esc_shortcut.activated.connect(self._on_esc_pressed)
-        self.esc_shortcut.setEnabled(False)
+        self._register_shortcut(Qt.Key.Key_Escape, self._on_esc_pressed)
 
     def update_content(self, 
         step_type: ExperimentStepType | None,
@@ -106,14 +94,39 @@ class CalibrationView(QWidget):
             self._draw_fixation_cross(painter, w, h)
             return
 
-        color, label = STEP_DISPLAY.get(self.step_type, (QColor(255, 255, 255), self.step_type.value.upper()))
+        color, label, _ = STEP_DISPLAY.get(
+            self.step_type,
+            (QColor(255, 255, 255), self.step_type.value.upper(), None)
+        )
 
         # Action label
-        action_font = QFont("Arial", 48, QFont.Weight.Bold)
+        action_font = QFont("Arial", 32, QFont.Weight.Bold)
         painter.setFont(action_font)
         painter.setPen(color)
         action_w = painter.fontMetrics().horizontalAdvance(label)
-        painter.drawText((w - action_w) // 2, int(h * 0.42) + painter.fontMetrics().ascent(), label)
+        text_y = int(h * 0.42) + painter.fontMetrics().ascent()
+        painter.drawText((w - action_w) // 2, text_y, label)
+
+        if self.step_type == ExperimentStepType.SSVEP_FOCUS and not self.is_paused:
+            sin_factor = math.sin(2 * math.pi * 10 * self.ssvep_display_arg / 100)
+            sin_factor = 0 if sin_factor < 0.5 else sin_factor # Creates a "blinking" effect where the dot is fully visible for half the time and invisible for the other half
+            painter.save()
+            painter.setOpacity(sin_factor)
+            dot_radius = 24
+            cx = w // 2
+            cy = int(h * 0.60) + 24
+            painter.setBrush(QColor(255, 255, 255))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(cx - dot_radius, cy - dot_radius, dot_radius * 2, dot_radius * 2)
+            painter.restore()
+            self.ssvep_display_arg = (self.ssvep_display_arg + 1) % 100 # Increment to trigger animation changes
+        
+        else:
+            scaled_pixmap = get_pixmap_cache(STEP_DISPLAY).get(self.step_type)
+            if scaled_pixmap is not None:
+                img_x = (w - scaled_pixmap.width()) // 2
+                img_y = text_y + 30
+                painter.drawPixmap(img_x, img_y, scaled_pixmap)
 
     def _draw_fixation_cross(self, painter: QPainter, w: int, h: int):
         cx, cy = w // 2, int(h * 0.42) + 24
@@ -124,11 +137,11 @@ class CalibrationView(QWidget):
         painter.drawRect(cx - thick // 2, cy - arm, thick, arm * 2)
 
     def _draw_result(self, painter: QPainter, w: int, h: int):
-        prompted_color, prompted_label = STEP_DISPLAY.get(
+        prompted_color, prompted_label, _ = STEP_DISPLAY.get(
             self.step_type, (QColor(200, 200, 200), self.step_type.value.upper())
         ) if self.step_type else (QColor(200, 200, 200), "—")
 
-        classified_color, classified_label = STEP_DISPLAY.get(
+        classified_color, classified_label, _ = STEP_DISPLAY.get(
             self.classified_as, (QColor(200, 200, 200), self.classified_as.value.upper())
         )
 
@@ -171,7 +184,7 @@ class CalibrationView(QWidget):
         draw_row(row1_y, "Prompted:", prompted_label, prompted_color)
         draw_row(row2_y, "Classified:", classified_label, classified_color)
 
-        # ✓ / ✗ indicator
+        # Valid ✓ / Invalid ✗ indicator
         indicator_font = QFont("Segoe UI Symbol", 48, QFont.Weight.Bold)
         painter.setFont(indicator_font)
         indicator_color = QColor(60, 210, 100) if correct else QColor(220, 70, 70)
@@ -188,24 +201,7 @@ class CalibrationView(QWidget):
             fill_w = int(w * self.progress_percent)
             painter.fillRect(0, bar_y, fill_w, bar_h, QColor(80, 120, 200))
 
-    def get_pending_events(self) -> list[CalibrationEvent]:
-        events = self.pending_events.copy()
-        self.pending_events.clear()
-        return events
-    
     def _on_esc_pressed(self):
         if self.is_paused:
             print("[CalibrationView] ESC pressed during pause - adding ABORT event")
             self.pending_events.append(CalibrationEvent.ABORT)
-
-    def showEvent(self, event):
-        """Called by Qt when this view becomes visible. Enables the ESC shortcut."""
-        super().showEvent(event)
-        self.esc_shortcut.setEnabled(True)
-        print("[CalibrationView] ESC shortcut enabled")
-
-    def hideEvent(self, event):
-        """Called by Qt when this view is hidden. Disables the ESC shortcut to prevent it from firing in the background."""
-        super().hideEvent(event)
-        self.esc_shortcut.setEnabled(False)
-        print("[CalibrationView] ESC shortcut disabled")

@@ -81,10 +81,6 @@ class GUIManager:
     def on_quit_requested(self) -> None:
         if self.current_view == self.main_menu_view:
             self.main_menu_view.pending_events.append(MainMenuEvent.QUIT)
-        elif self.current_view == self.experiment_view:
-            self.experiment_view.pending_events.append(ExperimentEvent.QUIT)
-        elif self.current_view == self.calibration_view:
-            self.calibration_view.pending_events.append(CalibrationEvent.QUIT)
 
 # Main menu methods
 
@@ -96,7 +92,7 @@ class GUIManager:
     def update_main_menu(self, headset_connected: bool = False) -> None:
         self.main_menu_view.update_content(headset_connected)
 
-    def process_main_menu_events(self) -> list[MainMenuEvent]:
+    def get_main_menu_events(self) -> list[MainMenuEvent]:
         return self.main_menu_view.get_pending_events()
 
 # Experiment methods
@@ -104,6 +100,7 @@ class GUIManager:
     def show_experiment(self) -> None:
         self.current_view = self.experiment_view
         self.stacked_widget.setCurrentWidget(self.experiment_view)
+        self.experiment_view.is_paused = False
         self.sidebar.reset_pause()
         self.sidebar.set_buttons_visibility(show_pause=True, show_back=False)
 
@@ -115,7 +112,7 @@ class GUIManager:
     ) -> None:
         self.experiment_view.update_content(step_type, no_eeg_mode, is_paused, progress_percent)
 
-    def process_experiment_events(self) -> list[ExperimentEvent]:
+    def get_experiment_events(self) -> list[ExperimentEvent]:
         return self.experiment_view.get_pending_events()
 
 # Calibration methods
@@ -123,6 +120,7 @@ class GUIManager:
     def show_calibration(self) -> None:
         self.current_view = self.calibration_view
         self.stacked_widget.setCurrentWidget(self.calibration_view)
+        self.calibration_view.is_paused = False
         self.sidebar.reset_pause()
         self.sidebar.set_buttons_visibility(show_pause=True)
 
@@ -135,7 +133,7 @@ class GUIManager:
     ) -> None:
         self.calibration_view.update_content(step_type, classified_as, no_eeg_mode, is_paused, progress_percent)
 
-    def process_calibration_events(self) -> list[CalibrationEvent]:
+    def get_calibration_events(self) -> list[CalibrationEvent]:
         return self.calibration_view.get_pending_events()
 
     def show_calibration_config_dialog(self) -> CalibrationConfig | None:

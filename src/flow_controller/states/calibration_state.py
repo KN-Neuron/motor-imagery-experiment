@@ -1,19 +1,17 @@
 import random
 from typing import override, TYPE_CHECKING
-from PyQt6.QtCore import QTime
+from PyQt6.QtCore import QElapsedTimer
+from pathlib import Path
 
 from src.sample_manager.sample_manager import SampleManager, ExperimentStep
-from src.sample_manager.experiment_step_type import ExperimentStepType
+from src.sample_manager.experiment_step_type import ExperimentStepType, CLASSIFIABLE
 from src.gui.views.calibration_view import CalibrationEvent
-
+from src.flow_controller.session_saver.session_saver import SessionSaver
 from . import FlowState
+
 
 if TYPE_CHECKING:
     from .main_menu_state import MainMenuState
-
-_CLASSIFIABLE = [s for s in ExperimentStepType
-                 if s not in (ExperimentStepType.FIXATION, ExperimentStepType.REST)]
-
 
 class CalibrationState(FlowState):
     """Handles calibration: shows cue → classifies → shows result."""
@@ -22,28 +20,28 @@ class CalibrationState(FlowState):
         super().__init__(flow_controller)
         self.sample_manager: SampleManager = None
         self.current_step: ExperimentStep = None
-        self.step_start_time: QTime = None
+        self.step_timer: QElapsedTimer = QElapsedTimer()
         self.classified_as: ExperimentStepType | None = None
         self.no_eeg_mode: bool = False
         self.is_paused: bool = False
-        self.pause_elapsed_time: int = 0
+        self.step_was_paused: bool = False
+        self._in_result_phase: bool = False
         self.total_steps: int = 0
         self.completed_steps: int = 0
-        self.cue_duration_ms: int = 4000
         self.result_duration_ms: int = 2000
+        self.session_saver: SessionSaver = None
 
     @override
     def enter(self):
+        from .main_menu_state import MainMenuState
+
         self.no_eeg_mode = not self.eeg_headset.is_connected()
 
         config = self.gui_manager.show_calibration_config_dialog()
         if config is None:
-            # Import here to avoid circular import
-            from .main_menu_state import MainMenuState
             self.flow_controller.change_state(MainMenuState)
             return
 
-        self.cue_duration_ms = config.cue_ms
         self.result_duration_ms = config.result_ms
 
         self.sample_manager = SampleManager(
@@ -52,23 +50,39 @@ class CalibrationState(FlowState):
             fixation_ms=config.fixation_ms,
             cue_ms=config.cue_ms,
             rest_ms=config.rest_ms,
+            cues=config.cues,
         )
         self.total_steps = len(self.sample_manager.step_queue)
         self.completed_steps = 0
+        self.is_paused = False
         self.classified_as = None
+        self._in_result_phase = False
+
+        if not self.no_eeg_mode:
+            try:
+                self.eeg_headset.start()
+            except Exception as e:
+                print(f"[CalibrationState] Error starting EEG headset: {e}")
+                self.flow_controller.change_state(MainMenuState)
+                return
+            self.session_saver = SessionSaver(channel_labels=self.eeg_headset.channel_labels, sample_rate=self.eeg_headset.sample_rate, output_dir=Path("sessions/calibrations"), session_name=config.session_name)
+            self.session_saver.start_session()
+            self.eeg_headset.add_subscriber(self.session_saver.on_chunk)
 
         self.current_step = self.sample_manager.get_next()
-        self.step_start_time = QTime.currentTime()
+        self.step_timer.start()
+
+        if not self.no_eeg_mode:
+            self.session_saver.add_marker("calibration_start")
 
         self.gui_manager.show_calibration()
         self.gui_manager.update_calibration(self.current_step.step_type, None, 0.0, self.no_eeg_mode)
-        print(f"Calibration started — {self.total_steps} steps, {config.trials_per_class} trials/class, strategy={config.strategy}, no_eeg_mode={self.no_eeg_mode}")
+        print(f"[CalibrationState] Calibration started — {self.total_steps} steps, {config.trials_per_class} trials/class, strategy={config.strategy}, no_eeg_mode={self.no_eeg_mode}")
 
     @override
     def tick(self):
         if not self.current_step:
-            print("Calibration completed!")
-            # Import here to avoid circular import
+            print("[CalibrationState] Calibration completed!")
             from .main_menu_state import MainMenuState
             self.flow_controller.change_state(MainMenuState)
             return
@@ -83,64 +97,80 @@ class CalibrationState(FlowState):
             progress_percent,
         )
 
-        events = self.gui_manager.process_calibration_events()
+        events = self.gui_manager.get_calibration_events()
         for event in events:
             if event == CalibrationEvent.ABORT:
-                print("Calibration aborted")
-                # Import here to avoid circular import
+                print("[CalibrationState] Calibration aborted")
                 from .main_menu_state import MainMenuState
                 self.flow_controller.change_state(MainMenuState)
                 return
             elif event == CalibrationEvent.PAUSE:
                 self.is_paused = not self.is_paused
-                if self.is_paused:
-                    self.pause_elapsed_time = self.step_start_time.msecsTo(QTime.currentTime())
-                else:
-                    self.step_start_time = QTime.currentTime().addMSecs(-self.pause_elapsed_time)
+                self.step_was_paused = True
+                if not self.no_eeg_mode:
+                    self.session_saver.add_marker("PAUSED" if self.is_paused else "RESUMED")
+                print("Calibration PAUSED" if self.is_paused else "Calibration RESUMED")
 
         if self.is_paused:
             return
 
-        elapsed = self.step_start_time.msecsTo(QTime.currentTime())
-        is_classifiable = self.current_step.step_type in _CLASSIFIABLE
+        elapsed = self.step_timer.elapsed()
 
-        if self.classified_as is None:
-            cue_duration = self.cue_duration_ms if is_classifiable else self.current_step.duration_ms
-            if elapsed >= cue_duration:
-                if is_classifiable:
-                    # CUE phase done — classify and show result
+        if not self._in_result_phase:
+            # Active step phase: CUE / FIXATION / REST
+            if elapsed >= self.current_step.duration_ms:
+                if self.current_step.step_type in CLASSIFIABLE:
                     self.classified_as = self._classify()
-                    self.step_start_time = QTime.currentTime()
-                    print(f"Classified: {self.classified_as.value}")
+                    self._in_result_phase = True
+                    self.step_timer.restart()
+                    if not self.no_eeg_mode:
+                        self.session_saver.add_marker(f"RESULT_{self.classified_as.value.upper()}")
+                    print(f"[CalibrationState] Classified: {self.classified_as.value}")
                 else:
-                    # FIXATION/REST — no classification, move directly to next step
-                    self.completed_steps += 1
-                    self.current_step = self.sample_manager.get_next()
-                    self.step_start_time = QTime.currentTime()
+                    self._advance_to_next_step()
         else:
-            # RESULT phase — wait then move to next step
+            # Result display phase (only for classifiable steps)
             if elapsed >= self.result_duration_ms:
-                self.completed_steps += 1
-                self.current_step = self.sample_manager.get_next()
                 self.classified_as = None
-                self.step_start_time = QTime.currentTime()
+                self._in_result_phase = False
+                self._advance_to_next_step()
+
+    def _advance_to_next_step(self) -> None:
+        self.completed_steps += 1
+        self.current_step = self.sample_manager.get_next()
+        self.step_timer.restart()
+        self.step_was_paused = False
+        if self.current_step and not self.no_eeg_mode:
+            self.session_saver.add_marker(self.current_step.step_type.value.upper())
 
     def _classify(self) -> ExperimentStepType:
-        if self.no_eeg_mode:
-            return random.choice(_CLASSIFIABLE)
-        else:
-            # Placeholder for actual classification logic. For now, just return the correct class or a random one if in no-EEG mode.
-            return self.current_step.step_type
+        # TODO: pass eeg_data to actual classifier
+        return random.choice(CLASSIFIABLE) if self.no_eeg_mode else self.current_step.step_type
 
     @override
     def exit(self):
+        if self.session_saver is not None:
+            try:
+                self.eeg_headset.remove_subscriber(self.session_saver.on_chunk)
+                self.session_saver.stop_session()
+            except Exception as e:
+                print(f"[CalibrationState] Error stopping session: {e}")
+
         self.sample_manager = None
         self.current_step = None
         self.classified_as = None
-        self.no_eeg_mode = False
-        self.is_paused = False
-        self.pause_elapsed_time = 0
+        self._in_result_phase = False
         self.total_steps = 0
         self.completed_steps = 0
-        self.cue_duration_ms = 4000
         self.result_duration_ms = 2000
+        self.session_saver = None
+
+        if not self.no_eeg_mode:
+            try:
+                self.eeg_headset.stop()
+            except Exception as e:
+                print(f"[CalibrationState] Error stopping EEG headset: {e}")
+
+        self.no_eeg_mode = False
+        self.is_paused = False
+        print("[CalibrationState] Calibration state exited")

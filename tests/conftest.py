@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 # from src.data_manager import DataManager
-from src.egg_headset import EggHeadset
+from eeg_headset.eeg_headset import EEGHeadset
 from src.gui import GUIManager
 
 
@@ -15,10 +15,10 @@ def sample_gui_manager() -> GUIManager:
 
 
 @pytest.fixture
-def sample_egg_headset() -> EggHeadset:
+def sample_eeg_headset() -> EEGHeadset:
     """Sample egg headset for testing."""
 
-    return EggHeadset(device_address="mock_device")
+    return EEGHeadset(device_address="mock_device")
 
 
 # @pytest.fixture

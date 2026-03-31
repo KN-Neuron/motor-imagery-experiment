@@ -115,11 +115,6 @@ class Sidebar(QWidget):
         self.pause_btn.hide()
         layout.addWidget(self.pause_btn)
 
-        self.back_btn = SidebarButton("←", "BACK", "Back to Menu")
-        self.back_btn.clicked.connect(self._on_back_clicked)
-        self.back_btn.hide()
-        layout.addWidget(self.back_btn)
-
         self.quit_btn = SidebarButton("✕", "QUIT", "Quit application")
         self.quit_btn.clicked.connect(self.quit_requested.emit)
         self.quit_btn.hide()
@@ -166,16 +161,16 @@ class Sidebar(QWidget):
         print(f"[Sidebar] Pause toggled: {self.is_paused}")
         self.pause_toggled.emit()
 
-    def _on_back_clicked(self):
-        self.back_requested.emit()
-
     def reset_pause(self):
         if self.is_paused:
-            self._on_pause_clicked()
+            self.is_paused = False
+            self.pause_btn.set_active(False)
+            self.pause_btn.set_icon("⏸")
+            self.pause_btn.set_label("PAUSE")
+            self.pause_btn.setToolTip("Pause")
 
     def set_buttons_visibility(self, show_pause: bool = False, show_back: bool = False, show_quit: bool = False):
         self.pause_btn.setVisible(show_pause)
-        self.back_btn.setVisible(show_back)
         self.quit_btn.setVisible(show_quit)
 
     def update_states(self, is_fullscreen: bool):

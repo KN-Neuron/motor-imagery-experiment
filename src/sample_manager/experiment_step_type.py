@@ -11,3 +11,6 @@ class ExperimentStepType(Enum):
     JAW_CLENCH = "jaw_clench"  # Zaciśnięcie szczęki
     HEAD_MOVEMENT = "head_movement"  # Ruch głową
     SSVEP_FOCUS = "ssvep_focus"  # Skupienie na migającym punkcie
+
+CLASSIFIABLE = [s for s in ExperimentStepType
+                 if s not in (ExperimentStepType.FIXATION, ExperimentStepType.REST)]

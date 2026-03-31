@@ -19,6 +19,7 @@ class SampleManager:
         fixation_ms: int = 2000,
         cue_ms: int = 4000,
         rest_ms: int = 1500,
+        cues: list[str] = None,
     ) -> None:
         self.durations = {"fixation": fixation_ms, "cue": cue_ms, "rest": rest_ms}
 
@@ -27,7 +28,12 @@ class SampleManager:
             ExperimentStepType.REST,
         )
 
-        commands = [step for step in ExperimentStepType if step not in excluded_steps]
+        if cues is not None:
+            # Zamień stringi na ExperimentStepType, ignoruj nieznane
+            allowed = set(s.lower() for s in cues)
+            commands = [step for step in ExperimentStepType if step not in excluded_steps and step.value in allowed]
+        else:
+            commands = [step for step in ExperimentStepType if step not in excluded_steps]
 
         self.sampler: BaseSampler
         if strategy == "stratified":

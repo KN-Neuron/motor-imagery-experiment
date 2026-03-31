@@ -5,9 +5,10 @@ import yaml
 class HeadsetModel(Enum):
     HALO_4CH = "HALO_4CH"
     MIDI_16CH_BASE = "MIDI_16CH_BASE"
+    SAMPLE_64CH = "SAMPLE_64CH"
 
 
-class HeadsetConfiguration:
+class HeadsetConfig:
     def __init__(self, model: HeadsetModel, config_path: str = "headsets.yaml"):
         self.model = model
 
