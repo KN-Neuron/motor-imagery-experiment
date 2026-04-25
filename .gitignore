@@ -33,8 +33,9 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Config file
-trials_config.yaml
+# Config files (runtime; templates `*.example.config.yaml` are committed)
+trials.config.yaml
+brainaccess.config.yaml
 
 # Session data
 sessions/*

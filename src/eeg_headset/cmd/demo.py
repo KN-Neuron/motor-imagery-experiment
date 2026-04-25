@@ -10,7 +10,7 @@ from ..eeg_headset import EEGHeadset
 def main() -> None:
     driver_config = HeadsetConfig(
         model=HeadsetModel.MIDI_16CH_BASE, 
-        config_path="brainaccess_headsets_config.yaml"
+        config_path="brainaccess.config.yaml"
     )
     # driver = BrainAccessDriver(driver_config)
     driver = MockDriver(driver_config)

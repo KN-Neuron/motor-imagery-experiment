@@ -132,8 +132,8 @@ src/
       sidebar.py
       config_dialog.py
 
-trials_config.yaml
-brainaccess_headsets_config.yaml
+trials.config.yaml
+brainaccess.config.yaml
 ```
 
 ### 5.2 Kluczowe elementy
@@ -297,7 +297,7 @@ Rozwiązanie: Widoki gromadzą zdarzenia w liście pending_events;
 ## 12. Załączniki
 
 - [README.md](../README.md) — dokumentacja techniczna projektu
-- Konfiguracja sesji: `trials_config.yaml`, `brainaccess_headsets_config.yaml`
+- Konfiguracja sesji: `trials.config.yaml`, `brainaccess.config.yaml` (template'y: `*.example.config.yaml`)
 - Format danych wyjściowych: EDF+ (MNE-Python), events.tsv (BIDS)
 
 ---

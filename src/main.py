@@ -15,7 +15,7 @@ def main() -> None:
     
     driver_config = HeadsetConfig(
         model=HeadsetModel.HALO_4CH, 
-        config_path="brainaccess_headsets_config.yaml")
+        config_path="brainaccess.config.yaml")
     driver = MockDriver(config=driver_config)
     # driver = BrainAccessDriver(config=driver_config)
     headset = EEGHeadset(driver)

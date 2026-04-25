@@ -41,7 +41,14 @@ If no headset is connected, you can start calibration/experiment by holding **Al
 
 ## Configuration
 
-### `trials_config.yaml`
+Both runtime config files (`trials.config.yaml`, `brainaccess.config.yaml`) are gitignored. Copy them from the committed templates on first setup:
+
+```bash
+cp trials.example.config.yaml trials.config.yaml
+cp brainaccess.example.config.yaml brainaccess.config.yaml
+```
+
+### `trials.config.yaml`
 
 Main configuration file for experiment and calibration sessions:
 
@@ -74,7 +81,7 @@ calibration:
 
 All parameters can also be adjusted in the config dialog at session start (including cue selection via checkboxes and a custom session folder name).
 
-### `brainaccess_headsets_config.yaml`
+### `brainaccess.config.yaml`
 
 Headset model configuration -- channel-to-position mapping (10-20 system), sample rate:
 
