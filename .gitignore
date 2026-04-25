@@ -14,7 +14,6 @@ venv/
 # Python package metadata
 *.egg-info/
 src/*.egg-info/
-**/hex_o_spell_experiment.egg-info/
 
 # Build artifacts
 dist/

@@ -1,4 +1,4 @@
-# Hex-O-Spell Experiment
+# Motor Imagery Experiment
 
 A desktop application for BCI (Brain-Computer Interface) experiments using the BrainAccess EEG headset. Collects EEG data during calibration and experiment sessions based on motor imagery, SSVEP, and other paradigms. Built by KN Neuron student research group.
 

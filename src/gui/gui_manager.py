@@ -36,7 +36,7 @@ class GUIManager:
     def initialize(self) -> None:
         """Create the main window, layout and connect sidebar signals."""
         self.window = QMainWindow()
-        self.window.setWindowTitle("Hex-O-Spell Experiment")
+        self.window.setWindowTitle("Motor Imagery Experiment")
         self.window.setMinimumSize(self.min_width, self.min_height)
         self.window.resize(self.width, self.height)
         container = QWidget()

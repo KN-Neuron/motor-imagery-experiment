@@ -1,5 +1,5 @@
 [project]
-name = "hex-o-spell-experiment"
+name = "motor-imagery-experiment"
 version = "0.1.0"
 description = "Desktop application for BCI experiments using BrainAccess EEG headset (motor imagery, SSVEP). Part of the BrainBoard project."
 authors = [
