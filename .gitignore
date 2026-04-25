@@ -38,6 +38,7 @@ trials_config.yaml
 
 # Session data
 sessions/*
+!sessions/.gitkeep
 
 # Binary files
 *.bin
