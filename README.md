@@ -157,7 +157,7 @@ Onsets and durations are computed from precise sample indices (sample_idx / samp
 ```
 src/
   main.py                              # Entry point
-  config/config.py                     # YAML config loader + dataclasses
+  trials_config/trials_config.py       # YAML config loader + dataclasses
 
   flow_controller/
     flow_controller.py                 # Main loop (QTimer 10ms tick), state machine
@@ -173,10 +173,12 @@ src/
     eeg_headset.py                     # Headset interface (poll, subscribe, annotate)
     ring_buffer.py                     # Circular buffer for EEG samples
     headset_config.py                  # Headset model config loader from YAML
+    cmd/demo.py                        # Standalone CLI demo of EEG capture
     drivers/
       headset_driver.py                # Protocol (interface) for drivers
       brainaccess.py                   # BrainAccess SDK driver
       mock.py                          # Mock driver (synthetic EEG data)
+      playback.py                      # Replay driver (plays back recorded EEG)
 
   sample_manager/
     sample_manager.py                  # Trial sequence generator (FIXATION -> CUE -> REST)
@@ -190,6 +192,7 @@ src/
       main_menu_view.py                # Main menu view
       experiment_view.py               # Experiment view
       calibration_view.py              # Calibration view (+ classification result)
+      utils/pixmap_cache.py            # Cached image loader for cue assets
     shared/
       button.py                        # Styled button widget
       sidebar.py                       # Side panel (fullscreen, pause, quit)

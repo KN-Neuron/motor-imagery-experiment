@@ -94,7 +94,7 @@ Desktopowa aplikacja do prowadzenia sesji EEG: kalibracyjnych (użytkownik wykon
 ```
 src/
   main.py
-  config/config.py
+  trials_config/trials_config.py
 
   flow_controller/
     flow_controller.py
@@ -110,10 +110,12 @@ src/
     eeg_headset.py
     ring_buffer.py
     headset_config.py
+    cmd/demo.py
     drivers/
       headset_driver.py
       brainaccess.py
       mock.py
+      playback.py
 
   sample_manager/
     sample_manager.py
@@ -127,6 +129,7 @@ src/
       main_menu_view.py
       experiment_view.py
       calibration_view.py
+      utils/pixmap_cache.py
     shared/
       button.py
       sidebar.py
@@ -269,7 +272,7 @@ Rozwiązanie: Widoki gromadzą zdarzenia w liście pending_events;
 
 - Klasyfikator jako stub od początku — zamiast losowego placeholdera, interfejs gotowy do podpięcia prawdziwego modelu
 - Więcej testów integracyjnych z MockDriver od wczesnych etapów
-- Wyraźniejsze rozdzielenie konfiguracji sprzętowej od konfiguracji sesji
+- Konsekwentniejsze stosowanie helperów w klasach stanów od początku — przy pierwszej iteracji `enter()`/`tick()` urosły do funkcji 40-50 linijkowych, refactor wprowadziliśmy dopiero później
 
 ---
 
