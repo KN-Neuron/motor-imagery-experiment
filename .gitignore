@@ -38,3 +38,7 @@ trials_config.yaml
 
 # Session data
 sessions/*
+
+# Binary files
+*.bin
+*.dll
