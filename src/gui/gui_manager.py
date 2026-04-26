@@ -6,7 +6,7 @@ from .views.experiment_view import ExperimentView, ExperimentEvent
 from .views.calibration_view import CalibrationView, CalibrationEvent
 from .shared.sidebar import Sidebar
 from .shared.config_dialog import CalibrationConfigDialog, ExperimentConfigDialog
-from src.config.config import (
+from src.trials_config.trials_config import (
     CalibrationConfig, ExperimentConfig,
     load_calibration_config, load_experiment_config,
 )
@@ -36,7 +36,7 @@ class GUIManager:
     def initialize(self) -> None:
         """Create the main window, layout and connect sidebar signals."""
         self.window = QMainWindow()
-        self.window.setWindowTitle("Hex-O-Spell Experiment")
+        self.window.setWindowTitle("Motor Imagery Experiment")
         self.window.setMinimumSize(self.min_width, self.min_height)
         self.window.resize(self.width, self.height)
         container = QWidget()

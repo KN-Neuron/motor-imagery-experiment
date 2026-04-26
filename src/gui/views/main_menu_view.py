@@ -77,7 +77,7 @@ class MainMenuView(View):
         title_font = QFont('Arial', 56, QFont.Weight.Bold)
         painter.setFont(title_font)
         painter.setPen(QColor(255, 255, 255))
-        title_text = "Hex-O-Spell Experiment"
+        title_text = "Motor Imagery Experiment"
         title_metrics = painter.fontMetrics()
         title_width = title_metrics.horizontalAdvance(title_text)
         title_x = (width - title_width) // 2

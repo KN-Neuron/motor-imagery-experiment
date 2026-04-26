@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-_CONFIG_PATH = Path(__file__).parent.parent.parent / "trials_config.yaml"
+_CONFIG_PATH = Path(__file__).parent.parent.parent / "trials.config.yaml"
 
 # Public dataclasses (imported by config_dialog and the flow-controller states)
 

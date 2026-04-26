@@ -1,4 +1,4 @@
-# Hex-O-Spell Experiment
+# Motor Imagery Experiment
 
 A desktop application for BCI (Brain-Computer Interface) experiments using the BrainAccess EEG headset. Collects EEG data during calibration and experiment sessions based on motor imagery, SSVEP, and other paradigms. Built by KN Neuron student research group.
 
@@ -41,7 +41,14 @@ If no headset is connected, you can start calibration/experiment by holding **Al
 
 ## Configuration
 
-### `trials_config.yaml`
+Both runtime config files (`trials.config.yaml`, `brainaccess.config.yaml`) are gitignored. Copy them from the committed templates on first setup:
+
+```bash
+cp trials.example.config.yaml trials.config.yaml
+cp brainaccess.example.config.yaml brainaccess.config.yaml
+```
+
+### `trials.config.yaml`
 
 Main configuration file for experiment and calibration sessions:
 
@@ -74,7 +81,7 @@ calibration:
 
 All parameters can also be adjusted in the config dialog at session start (including cue selection via checkboxes and a custom session folder name).
 
-### `brainaccess_headsets_config.yaml`
+### `brainaccess.config.yaml`
 
 Headset model configuration -- channel-to-position mapping (10-20 system), sample rate:
 
@@ -150,7 +157,7 @@ Onsets and durations are computed from precise sample indices (sample_idx / samp
 ```
 src/
   main.py                              # Entry point
-  config/config.py                     # YAML config loader + dataclasses
+  trials_config/trials_config.py       # YAML config loader + dataclasses
 
   flow_controller/
     flow_controller.py                 # Main loop (QTimer 10ms tick), state machine
@@ -166,10 +173,12 @@ src/
     eeg_headset.py                     # Headset interface (poll, subscribe, annotate)
     ring_buffer.py                     # Circular buffer for EEG samples
     headset_config.py                  # Headset model config loader from YAML
+    cmd/demo.py                        # Standalone CLI demo of EEG capture
     drivers/
       headset_driver.py                # Protocol (interface) for drivers
       brainaccess.py                   # BrainAccess SDK driver
       mock.py                          # Mock driver (synthetic EEG data)
+      playback.py                      # Replay driver (plays back recorded EEG)
 
   sample_manager/
     sample_manager.py                  # Trial sequence generator (FIXATION -> CUE -> REST)
@@ -183,6 +192,7 @@ src/
       main_menu_view.py                # Main menu view
       experiment_view.py               # Experiment view
       calibration_view.py              # Calibration view (+ classification result)
+      utils/pixmap_cache.py            # Cached image loader for cue assets
     shared/
       button.py                        # Styled button widget
       sidebar.py                       # Side panel (fullscreen, pause, quit)

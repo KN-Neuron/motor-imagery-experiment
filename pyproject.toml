@@ -1,17 +1,15 @@
 [project]
-name = "hex-o-spell-experiment"
+name = "motor-imagery-experiment"
 version = "0.1.0"
-description = "A pygame-based experiment with GUI, egg headset, and data manager components"
+description = "Desktop application for BCI experiments using BrainAccess EEG headset (motor imagery, SSVEP). Part of the BrainBoard project."
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Koło Naukowe Neuron"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.13"
 dependencies = [
     "numpy>=1.24.0",
-    "pytest>=7.4.0",
-    "pytest-mock>=3.11.1",
     "pyqt6 (>=6.10.2,<7.0.0)",
     "brainaccess==3.6.1",
     "pyyaml==6.0.3",
@@ -23,18 +21,17 @@ dev = [
     "black>=23.9.1",
     "flake8>=6.0.0",
     "mypy>=1.5.1",
-    "pre-commit>=3.4.0"
+    "pre-commit>=3.4.0",
+    "pytest>=7.4.0",
+    "pytest-mock>=3.11.1"
 ]
 
 [tool.poetry]
 package-mode = false
 
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools.packages.find]
-where = ["src"]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -56,5 +53,5 @@ disallow_untyped_defs = true
 
 [tool.black]
 line-length = 88
-target-version = ['py312']
+target-version = ['py313']
 skip-string-normalization = true

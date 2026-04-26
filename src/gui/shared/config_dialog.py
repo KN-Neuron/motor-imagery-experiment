@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont
 
-from src.config.config import CalibrationConfig, ExperimentConfig
+from src.trials_config.trials_config import CalibrationConfig, ExperimentConfig
 from src.sample_manager.experiment_step_type import CLASSIFIABLE
 
 # Human-readable labels for cue types
