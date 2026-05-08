@@ -13,7 +13,7 @@ A desktop application for BCI (Brain-Computer Interface) experiments using the B
 - Python 3.13+
 - Poetry
 - BrainAccess SDK (`brainaccess` 3.6.1) -- for headset communication
-- BrainAccess headset (HALO 4CH or MIDI 16CH) -- optional, the app also works in mock mode
+- BrainAccess headset (HALO 4CH, MIDI 16CH, MAXI 32CH or SAMPLE 64CH) -- optional, the app also works in mock mode
 
 ## Installation
 
@@ -35,9 +35,17 @@ poetry install --with dev
 poetry run python -m src.main
 ```
 
-### No-headset mode
+The app starts in the main menu, with no headset connected. From there:
 
-If no headset is connected, you can start calibration/experiment by holding **Alt** while clicking the Start button. The app will use a MockDriver that generates synthetic EEG data -- all UI and logic work identically.
+1. Pick a model from the dropdown (populated from `brainaccess.config.yaml`).
+2. Optionally tick **Use mock driver** to run on synthetic data with that model's channel layout.
+3. Click **Connect**. This is synchronous -- the UI may freeze for a few seconds while the SDK negotiates Bluetooth.
+
+Once connected, you can start a calibration or experiment session. The headset can be swapped at any time (Disconnect → change selection → Connect) without restarting the app. If Bluetooth drops mid-session, the app writes a `DISCONNECTED` marker into the EDF, returns to the menu, and you can reconnect from there.
+
+### No-headset mode (Alt-shortcut)
+
+For UI smoke tests without any driver, hold **Alt** while clicking Start Experiment / Start Calibration. The session runs without an EEG stream: no EDF output, the classifier returns random predictions. For a more realistic dry-run with valid EDF output, use the **Use mock driver** checkbox in the menu instead.
 
 ## Configuration
 
@@ -83,12 +91,12 @@ All parameters can also be adjusted in the config dialog at session start (inclu
 
 ### `brainaccess.config.yaml`
 
-Headset model configuration -- channel-to-position mapping (10-20 system), sample rate:
+Per-model headset configuration -- the file lists every headset variant the app can use, with channel-to-position mapping (10-20 system), channel count, and sample rate. The main-menu dropdown is populated from this file at runtime.
 
 ```yaml
 headsets:
   HALO_4CH:
-    device_name: "BA HALO 001"
+    device_name: "BA HALO 001"     # exact BLE name from the device label / Windows Bluetooth
     n_channels: 4
     sample_rate_hz: 250
     channel_map: {0: "Fp1", 1: "Fp2", 2: "O1", 3: "O2"}
@@ -98,7 +106,31 @@ headsets:
     n_channels: 16
     sample_rate_hz: 250
     channel_map: {0: "Fp1", 1: "Fp2", ..., 15: "F8"}
+
+  MAXI_32CH:
+    device_name: "BA MAXI XXX"     # replace XXX with the serial from the device label
+    n_channels: 32
+    sample_rate_hz: 250
+    channel_map: {0: "Fp1", 1: "Fp2", 2: "AF3", ..., 31: "O2"}
+
+  SAMPLE_64CH:
+    device_name: "Sample 64-Channel Headset"
+    n_channels: 64
+    sample_rate_hz: 250
+    channel_map: {0: "Fp1", 1: "Fp2", ..., 63: "PO4"}
 ```
+
+**Field semantics:**
+
+- `device_name` -- the Bluetooth advertising name; the SDK matches against this string verbatim. Check the device label and your OS Bluetooth pairing list. Mismatch -> `connect()` fails.
+- `n_channels` -- must equal the length of `channel_map` (validated on load).
+- `sample_rate_hz` -- on Maxi/MIDI hardware this is fixed to 250 Hz by SDK; HALO/MINI also support 500 Hz.
+- `channel_map` -- ordered map of hardware index -> 10-20 electrode position. Order must match the physical electrode layout of your specific cap, otherwise EDF channel labels will be misaligned with the recorded signal.
+
+**Adding a new headset model** requires two changes:
+
+1. Add the entry under `headsets:` in `brainaccess.config.yaml` (and the corresponding template in `brainaccess.example.config.yaml`).
+2. Add a matching value to `HeadsetModel` enum in [`src/eeg_headset/headset_config.py`](src/eeg_headset/headset_config.py). The dropdown only shows models present in *both* the YAML and the enum.
 
 ## Keyboard shortcuts
 
@@ -124,20 +156,23 @@ sessions/
       events.tsv
 ```
 
-### EDF+ format
+### EDF+ format (`session.edf`)
 
-- Continuous recording of all EEG channels
-- Annotations embedded in the file (label + onset in seconds)
-- Physical range: +/-3200 uV, 16-bit resolution
-- Reading with MNE-Python:
-  ```python
-  import mne
-  raw = mne.io.read_raw_edf("sessions/calibrations/.../session.edf")
-  print(raw.info)
-  print(raw.annotations)
-  ```
+EDF+ is the standard EEG container, readable by MNE-Python, EEGLAB, FieldTrip, EDFbrowser. `SessionSaver` writes the file incrementally during the session. Physical range is +/-3200 uV at 16-bit resolution.
+
+Annotations embedded in the file include trial phase markers (`FIXATION`, `REST`, step-type names like `LEFT_HAND_CLENCH`), session boundaries (`experiment_start` / `calibration_start`), pause events (`PAUSED` / `RESUMED`), classifier feedback in calibration (`RESULT_<class>`), and `DISCONNECTED` if the headset drops mid-session. Onsets are computed from `sample_idx / sample_rate`, so they are free of OS scheduler jitter and aligned with the recorded signal at sample-rate precision.
+
+Reading with MNE-Python:
+```python
+import mne
+raw = mne.io.read_raw_edf("sessions/calibrations/.../session.edf")
+print(raw.info)
+print(raw.annotations)
+```
 
 ### events.tsv (BIDS format)
+
+Tab-separated event list following the [BIDS](https://bids-specification.readthedocs.io/) events convention. Generated alongside the EDF on session stop.
 
 ```
 onset     duration  trial_type
@@ -146,7 +181,7 @@ onset     duration  trial_type
 2.700     0.700     REST
 ```
 
-Onsets and durations are computed from precise sample indices (sample_idx / sample_rate).
+`duration` is computed as the gap to the next marker (or the session end for the last entry). Onsets are aligned with EDF annotations -- both come from the same `(sample_idx, label)` list.
 
 ---
 
@@ -156,14 +191,14 @@ Onsets and durations are computed from precise sample indices (sample_idx / samp
 
 ```
 src/
-  main.py                              # Entry point
+  main.py                              # Entry point (creates GUIManager + FlowController)
   trials_config/trials_config.py       # YAML config loader + dataclasses
 
   flow_controller/
-    flow_controller.py                 # Main loop (QTimer 10ms tick), state machine
+    flow_controller.py                 # Main loop (QTimer 10ms tick), state machine, owns eeg_headset
     states/
       flow_state.py                    # Base state class (enter/tick/exit lifecycle)
-      main_menu_state.py               # Main menu handling
+      main_menu_state.py               # Main menu: headset selection, connect/disconnect, session entry
       calibration_state.py             # Calibration: cue -> classify -> show result
       experiment_state.py              # Experiment: cue -> record
     session_saver/
@@ -172,11 +207,11 @@ src/
   eeg_headset/
     eeg_headset.py                     # Headset interface (poll, subscribe, annotate)
     ring_buffer.py                     # Circular buffer for EEG samples
-    headset_config.py                  # Headset model config loader from YAML
+    headset_config.py                  # HeadsetModel enum + YAML config loader
     cmd/demo.py                        # Standalone CLI demo of EEG capture
     drivers/
       headset_driver.py                # Protocol (interface) for drivers
-      brainaccess.py                   # BrainAccess SDK driver
+      brainaccess.py                   # BrainAccess SDK driver (delegates is_connected/is_streaming to SDK)
       mock.py                          # Mock driver (synthetic EEG data)
       playback.py                      # Replay driver (plays back recorded EEG)
 
@@ -189,29 +224,37 @@ src/
     gui_manager.py                     # GUI coordinator, view switching
     views/
       view.py                          # Base view class (shortcuts, events)
-      main_menu_view.py                # Main menu view
+      main_menu_view.py                # Main menu view (model dropdown + connect/disconnect)
       experiment_view.py               # Experiment view
       calibration_view.py              # Calibration view (+ classification result)
       utils/pixmap_cache.py            # Cached image loader for cue assets
+    dialogs/
+      _shared.py                       # Shared dialog styles + layout helpers
+      _cues.py                         # Cue checkbox helpers (used by experiment + calibration dialogs)
+      experiment_config_dialog.py      # Experiment session setup
+      calibration_config_dialog.py     # Calibration session setup
     shared/
       button.py                        # Styled button widget
       sidebar.py                       # Side panel (fullscreen, pause, quit)
-      config_dialog.py                 # Session config dialogs
 ```
 
 ### Flow Controller -- state machine
 
 The core of the application. `FlowController` runs a QTimer with a 10ms tick (100 FPS). Each tick:
 
-1. `eeg_headset.poll()` -- reads new samples from the headset and forwards them to subscribers
+1. `eeg_headset.poll()` -- reads new samples and forwards them to subscribers (only when the headset is set, connected and streaming)
 2. `current_state.tick()` -- the current state processes GUI events and manages transitions
 
-States follow the `enter()` -> `tick()` (repeated) -> `exit()` lifecycle. Transitions happen via `change_state()`.
+States follow the `enter(**kwargs)` -> `tick()` (repeated) -> `exit()` lifecycle. Transitions happen via `change_state(state, **kwargs)`; kwargs are forwarded to `enter()`. Each state reads what it needs (e.g. `kwargs.get("no_eeg_mode", False)` in session states) and ignores the rest.
 
 ```
 MainMenuState  -->  CalibrationState  -->  MainMenuState
                -->  ExperimentState   -->  MainMenuState
 ```
+
+**Headset ownership.** `FlowController.eeg_headset` is `Optional[EEGHeadset]` and starts as `None`. Only `MainMenuState` mutates it: building a driver from the dropdown selection on Connect, clearing it on Disconnect. Session states read it through the live property `FlowState.eeg_headset` (re-resolved per access, not cached at state construction), so a swap in the menu is immediately visible to the next state.
+
+If the headset's SDK reports disconnection during a session (`BrainAccessDriver.is_connected` delegates to `EEGManager.is_connected()` from the SDK), the session state writes a `DISCONNECTED` marker, finalizes the EDF, and transitions back to the main menu. The user can reconnect and start a new session without restarting the app.
 
 ### EEG Headset -- subscriber pattern
 

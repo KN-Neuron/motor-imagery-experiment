@@ -5,7 +5,7 @@ from .views.main_menu_view import MainMenuView, MainMenuEvent
 from .views.experiment_view import ExperimentView, ExperimentEvent
 from .views.calibration_view import CalibrationView, CalibrationEvent
 from .shared.sidebar import Sidebar
-from .shared.config_dialog import CalibrationConfigDialog, ExperimentConfigDialog
+from .dialogs import CalibrationConfigDialog, ExperimentConfigDialog
 from src.trials_config.trials_config import (
     CalibrationConfig, ExperimentConfig,
     load_calibration_config, load_experiment_config,
@@ -91,6 +91,9 @@ class GUIManager:
 
     def update_main_menu(self, headset_connected: bool = False) -> None:
         self.main_menu_view.update_content(headset_connected)
+
+    def set_main_menu_available_models(self, models: list[str]) -> None:
+        self.main_menu_view.set_available_models(models)
 
     def get_main_menu_events(self) -> list[MainMenuEvent]:
         return self.main_menu_view.get_pending_events()

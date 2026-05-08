@@ -11,7 +11,7 @@ from pathlib import Path
 
 _CONFIG_PATH = Path(__file__).parent.parent.parent / "trials.config.yaml"
 
-# Public dataclasses (imported by config_dialog and the flow-controller states)
+# Public dataclasses (imported by the dialog modules and the flow-controller states)
 
 @dataclass
 class ExperimentConfig:

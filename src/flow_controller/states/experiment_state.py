@@ -27,9 +27,9 @@ class ExperimentState(FlowState):
         self.session_saver: SessionSaver = None
 
     @override
-    def enter(self):
+    def enter(self, **kwargs):
         """Initialize experiment with SampleManager."""
-        self.no_eeg_mode = not self.eeg_headset.is_connected()
+        self.no_eeg_mode = kwargs.get("no_eeg_mode", False)
 
         config = self._show_config_or_abort()
         if config is None:
@@ -44,6 +44,9 @@ class ExperimentState(FlowState):
     @override
     def tick(self):
         """Handle experiment phase transitions."""
+        if self._handle_disconnect():
+            return
+
         if not self.current_step:
             print("[ExperimentState] Experiment completed!")
             from .main_menu_state import MainMenuState
@@ -60,6 +63,20 @@ class ExperimentState(FlowState):
 
         if self.step_timer.elapsed() >= self.current_step.duration_ms:
             self._advance_to_next_step()
+
+    def _handle_disconnect(self) -> bool:
+        """If running with EEG and headset went away, mark it and bail to menu."""
+        if self.no_eeg_mode:
+            return False
+        if self.eeg_headset is not None and self.eeg_headset.is_connected():
+            return False
+
+        from .main_menu_state import MainMenuState
+        print("[ExperimentState] EEG headset disconnected — aborting session")
+        if self.session_saver is not None:
+            self.session_saver.add_marker("DISCONNECTED")
+        self.flow_controller.change_state(MainMenuState)
+        return True
 
     @override
     def exit(self):

@@ -2,23 +2,24 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 import sys
 
+from src.eeg_headset.eeg_headset import EEGHeadset
 from .states import MainMenuState, ExperimentState, CalibrationState
 
 
 class FlowController:
     """Manages overall application flow and state transitions."""
 
-    def __init__(self, gui_manager, eeg_headset) -> None:
+    def __init__(self, gui_manager) -> None:
         self.gui_manager = gui_manager
-        self.eeg_headset = eeg_headset
+        self.eeg_headset: EEGHeadset | None = None
         self.state = None
         self.timer = QTimer()
         self.timer.start(10)  # 100 FPS
         self.timer.timeout.connect(self._tick)
         self.running = True
 
-    def change_state(self, state):
-        """Exit current state and enter the new one."""
+    def change_state(self, state, **kwargs):
+        """Exit current state and enter the new one. kwargs are forwarded to enter()."""
         if self.state:
             self.state.exit()
 
@@ -31,18 +32,11 @@ class FlowController:
         else:
             raise ValueError(f"Unknown FlowController state: {state}")
 
-        self.state.enter()
+        self.state.enter(**kwargs)
 
     def start(self):
-        """Initialize GUI, connect headset and run the Qt event loop."""
+        """Initialize GUI and run the Qt event loop. Headset is selected and connected from the main menu."""
         self.gui_manager.initialize()
-
-        self.eeg_headset.connect()
-        if self.eeg_headset.is_connected():
-            print("[FlowController] Connected to EEG headset")
-        else:
-            print("[FlowController] Warning: Could not connect to EEG headset")
-
         self.change_state(MainMenuState)
 
         try:
@@ -61,15 +55,14 @@ class FlowController:
             QApplication.instance().quit()
             return
 
-        # Poll headset data if connected, then call current state tick
-        if self.eeg_headset.is_connected() and self.eeg_headset.is_streaming():
+        if self.eeg_headset is not None and self.eeg_headset.is_connected() and self.eeg_headset.is_streaming():
             self.eeg_headset.poll()
 
         self.state.tick()
 
     def shutdown(self):
         """Disconnect headset and exit the process."""
-        if self.eeg_headset.is_connected():
+        if self.eeg_headset is not None and self.eeg_headset.is_connected():
             self.eeg_headset.disconnect()
 
         sys.exit(0)

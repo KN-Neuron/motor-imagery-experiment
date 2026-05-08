@@ -31,6 +31,44 @@ headsets:
       14: "F7"
       15: "F8"
 
+  MAXI_32CH:
+    device_name: "BA MAXI 012" 
+    n_channels: 32
+    sample_rate_hz: 250
+    channel_map:
+      0: "Fp1"
+      1: "Fp2"
+      2: "AF3"
+      3: "AF4"
+      4: "F7"
+      5: "F3"
+      6: "Fz"
+      7: "F4"
+      8: "F8"
+      9: "FC5"
+      10: "FC1"
+      11: "FC2"
+      12: "FC6"
+      13: "T7"
+      14: "C3"
+      15: "Cz"
+      16: "C4"
+      17: "T8"
+      18: "CP5"
+      19: "CP1"
+      20: "CP2"
+      21: "CP6"
+      22: "P7"
+      23: "P3"
+      24: "Pz"
+      25: "P4"
+      26: "P8"
+      27: "PO3"
+      28: "PO4"
+      29: "O1"
+      30: "Oz"
+      31: "O2"
+
   SAMPLE_64CH:
     device_name: "Sample 64-Channel Headset"
     n_channels: 64
