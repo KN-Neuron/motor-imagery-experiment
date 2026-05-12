@@ -92,9 +92,6 @@ class GUIManager:
     def update_main_menu(self, headset_connected: bool = False) -> None:
         self.main_menu_view.update_content(headset_connected)
 
-    def set_main_menu_available_models(self, models: list[str]) -> None:
-        self.main_menu_view.set_available_models(models)
-
     def get_main_menu_events(self) -> list[MainMenuEvent]:
         return self.main_menu_view.get_pending_events()
 

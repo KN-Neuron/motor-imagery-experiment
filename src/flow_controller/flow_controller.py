@@ -35,7 +35,7 @@ class FlowController:
         self.state.enter(**kwargs)
 
     def start(self):
-        """Initialize GUI and run the Qt event loop. Headset is selected and connected from the main menu."""
+        """Initialize GUI and run the Qt event loop. Headset is pre-connected before this call."""
         self.gui_manager.initialize()
         self.change_state(MainMenuState)
 

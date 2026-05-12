@@ -1,5 +1,5 @@
 from enum import Enum
-from PyQt6.QtWidgets import QApplication, QComboBox, QCheckBox
+from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt, QRect
 from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont
 from ..shared.button import Button
@@ -7,51 +7,9 @@ from .view import View
 import os
 
 
-_COMBO_STYLE = """
-    QComboBox {
-        background-color: rgb(40, 40, 58);
-        color: rgb(220, 220, 240);
-        border: 1px solid rgba(100, 100, 150, 120);
-        border-radius: 6px;
-        padding: 6px 10px;
-        font-family: Arial;
-    }
-    QComboBox::drop-down {
-        border: none;
-        width: 24px;
-    }
-    QComboBox QAbstractItemView {
-        background-color: rgb(40, 40, 58);
-        color: rgb(220, 220, 240);
-        selection-background-color: rgb(70, 90, 160);
-    }
-"""
-
-_CHECKBOX_STYLE = """
-    QCheckBox {
-        color: rgb(200, 200, 220);
-        font-family: Arial;
-        spacing: 8px;
-    }
-    QCheckBox::indicator {
-        width: 18px;
-        height: 18px;
-        border: 1px solid rgba(100, 100, 150, 120);
-        border-radius: 3px;
-        background-color: rgb(40, 40, 58);
-    }
-    QCheckBox::indicator:checked {
-        background-color: rgba(70, 90, 180, 200);
-        border-color: rgba(100, 120, 220, 150);
-    }
-"""
-
-
 class MainMenuEvent(Enum):
     EXPERIMENT_BTN_CLICKED = "experiment_btn_clicked"
     CALIBRATION_BTN_CLICKED = "calibration_btn_clicked"
-    HEADSET_CONNECT_REQUESTED = "headset_connect_requested"
-    HEADSET_DISCONNECT_REQUESTED = "headset_disconnect_requested"
     QUIT = "quit"
 
 
@@ -59,10 +17,6 @@ class MainMenuView(View):
     def __init__(self) -> None:
         self.experiment_btn: Button = None
         self.calibration_btn: Button = None
-        self.connect_btn: Button = None
-        self.disconnect_btn: Button = None
-        self.model_combo: QComboBox = None
-        self.mock_checkbox: QCheckBox = None
         self.headset_connected = False
         super().__init__()
 
@@ -97,56 +51,6 @@ class MainMenuView(View):
             parent=self
         )
 
-        self.model_combo = QComboBox(self)
-        self.model_combo.setStyleSheet(_COMBO_STYLE)
-        self.model_combo.setFont(QFont("Arial", 14))
-
-        self.mock_checkbox = QCheckBox("Use mock driver", self)
-        self.mock_checkbox.setStyleSheet(_CHECKBOX_STYLE)
-        self.mock_checkbox.setFont(QFont("Arial", 12))
-
-        def on_connect_click():
-            selected = self.model_combo.currentData()
-            if selected is None:
-                print("[MainMenuView] Connect clicked but no model selected")
-                return
-            use_mock = self.mock_checkbox.isChecked()
-            print(f"[MainMenuView] Connect clicked, model={selected}, use_mock={use_mock}")
-            self.pending_events.append((MainMenuEvent.HEADSET_CONNECT_REQUESTED, selected, use_mock))
-
-        self.connect_btn = Button(
-            QRect(0, 0, 200, 50), "Connect Headset", on_connect_click,
-            base_color=(60, 140, 70, 200),
-            hover_color=(80, 180, 90, 220),
-            font_size=18,
-            parent=self
-        )
-
-        def on_disconnect_click():
-            print("[MainMenuView] Disconnect clicked")
-            self.pending_events.append(MainMenuEvent.HEADSET_DISCONNECT_REQUESTED)
-
-        self.disconnect_btn = Button(
-            QRect(0, 0, 200, 50), "Disconnect Headset", on_disconnect_click,
-            base_color=(140, 60, 60, 200),
-            hover_color=(180, 80, 80, 220),
-            font_size=18,
-            parent=self
-        )
-
-    def set_available_models(self, models: list[str]) -> None:
-        """Populate dropdown with model names. Preserves selection if still available."""
-        previous = self.model_combo.currentData()
-        self.model_combo.blockSignals(True)
-        self.model_combo.clear()
-        for model_name in models:
-            self.model_combo.addItem(model_name, model_name)
-        if previous is not None:
-            idx = self.model_combo.findData(previous)
-            if idx >= 0:
-                self.model_combo.setCurrentIndex(idx)
-        self.model_combo.blockSignals(False)
-
     def update_content(self, headset_connected: bool):
         self.headset_connected = headset_connected
 
@@ -160,20 +64,6 @@ class MainMenuView(View):
 
         self.experiment_btn.setGeometry(btn_x, btn_y, btn_w, btn_h)
         self.calibration_btn.setGeometry(btn_x, btn_y + btn_h + spacing, btn_w, btn_h)
-
-        combo_y = btn_y + 2 * (btn_h + spacing) + 30
-        self.model_combo.setGeometry(btn_x, combo_y, btn_w, 36)
-        self.model_combo.setEnabled(not headset_connected)
-
-        check_y = combo_y + 36 + 8
-        self.mock_checkbox.setGeometry(btn_x, check_y, btn_w, 24)
-        self.mock_checkbox.setEnabled(not headset_connected)
-
-        action_y = check_y + 24 + 12
-        self.connect_btn.setGeometry(btn_x, action_y, btn_w, btn_h)
-        self.disconnect_btn.setGeometry(btn_x, action_y, btn_w, btn_h)
-        self.connect_btn.setVisible(not headset_connected)
-        self.disconnect_btn.setVisible(headset_connected)
 
         self.update()
 
