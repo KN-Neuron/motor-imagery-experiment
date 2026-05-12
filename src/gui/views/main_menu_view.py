@@ -14,7 +14,6 @@ _COMBO_STYLE = """
         border: 1px solid rgba(100, 100, 150, 120);
         border-radius: 6px;
         padding: 6px 10px;
-        font-size: 16px;
         font-family: Arial;
     }
     QComboBox::drop-down {
@@ -32,7 +31,6 @@ _CHECKBOX_STYLE = """
     QCheckBox {
         color: rgb(200, 200, 220);
         font-family: Arial;
-        font-size: 14px;
         spacing: 8px;
     }
     QCheckBox::indicator {
@@ -101,9 +99,11 @@ class MainMenuView(View):
 
         self.model_combo = QComboBox(self)
         self.model_combo.setStyleSheet(_COMBO_STYLE)
+        self.model_combo.setFont(QFont("Arial", 14))
 
         self.mock_checkbox = QCheckBox("Use mock driver", self)
         self.mock_checkbox.setStyleSheet(_CHECKBOX_STYLE)
+        self.mock_checkbox.setFont(QFont("Arial", 12))
 
         def on_connect_click():
             selected = self.model_combo.currentData()
