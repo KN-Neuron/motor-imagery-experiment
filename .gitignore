@@ -43,3 +43,6 @@ sessions/*
 # Binary files
 *.bin
 *.dll
+
+# Sandbox scripts
+src/sandbox

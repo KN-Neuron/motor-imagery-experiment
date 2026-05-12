@@ -4,10 +4,12 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont
 import yaml
+import sys
 
 from src.eeg_headset.headset_config import HeadsetConfig, HeadsetModel
 from src.eeg_headset.eeg_headset import EEGHeadset
 from src.eeg_headset.drivers import MockDriver, BrainAccessDriver
+from src.eeg_headset.ipc import IpcHeadsetDriver, make_brainaccess_recipe
 
 from ._shared import DIALOG_STYLE, CANCEL_STYLE, START_STYLE, make_row, separator
 
@@ -117,7 +119,11 @@ class HeadsetSelectionDialog(QDialog):
                 driver = MockDriver(config=HeadsetConfig.mock())
             else:
                 config = HeadsetConfig(model=HeadsetModel(selected), config_path=self.CONFIG_PATH)
-                driver = BrainAccessDriver(config=config)
+                if sys.platform == "win32":
+                    recipe = make_brainaccess_recipe(model=selected, config_path=self.CONFIG_PATH)
+                    driver = IpcHeadsetDriver(recipe=recipe, config=config)
+                else:
+                    driver = BrainAccessDriver(config=config)
 
             headset = EEGHeadset(driver)
             headset.connect()

@@ -1,12 +1,16 @@
-from PyQt6.QtWidgets import QApplication, QDialog
 import sys
-
-from src.gui import GUIManager
-from src.gui.dialogs import HeadsetSelectionDialog
-from src.flow_controller import FlowController
 
 
 def main() -> None:
+    # IMPORTANT (Windows + multiprocessing spawn): keep PyQt imports inside main().
+    # Child processes created via spawn will import this module, and importing PyQt
+    # in the worker process can trigger the BrainAccess native crash.
+    from PyQt6.QtWidgets import QApplication, QDialog
+
+    from src.gui import GUIManager
+    from src.gui.dialogs import HeadsetSelectionDialog
+    from src.flow_controller import FlowController
+
     app = QApplication(sys.argv)  # saved as variable to prevent GC
 
     dialog = HeadsetSelectionDialog()
