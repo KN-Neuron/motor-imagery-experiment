@@ -10,6 +10,7 @@ import os
 class MainMenuEvent(Enum):
     EXPERIMENT_BTN_CLICKED = "experiment_btn_clicked"
     CALIBRATION_BTN_CLICKED = "calibration_btn_clicked"
+    RECONNECT_BTN_CLICKED = "reconnect_btn_clicked"
     QUIT = "quit"
 
 
@@ -17,6 +18,7 @@ class MainMenuView(View):
     def __init__(self) -> None:
         self.experiment_btn: Button = None
         self.calibration_btn: Button = None
+        self.reconnect_btn: Button = None
         self.headset_connected = False
         super().__init__()
 
@@ -24,6 +26,7 @@ class MainMenuView(View):
         self.setStyleSheet("background-color: rgb(30, 30, 40);")
 
         self._register_shortcut(Qt.Key.Key_Q, lambda: self.pending_events.append(MainMenuEvent.QUIT))
+        self._register_shortcut(Qt.Key.Key_R, lambda: self.pending_events.append(MainMenuEvent.RECONNECT_BTN_CLICKED))
 
         def on_experiment_click():
             mods = QApplication.keyboardModifiers()
@@ -51,6 +54,17 @@ class MainMenuView(View):
             parent=self
         )
 
+        def on_reconnect_click():
+            print("[MainMenuView] Reconnect button clicked")
+            self.pending_events.append(MainMenuEvent.RECONNECT_BTN_CLICKED)
+
+        self.reconnect_btn = Button(
+            QRect(0, 0, 200, 50), "Reconnect", on_reconnect_click,
+            base_color=(60, 60, 80, 180),
+            hover_color=(80, 80, 120, 200),
+            parent=self
+        )
+
     def update_content(self, headset_connected: bool):
         self.headset_connected = headset_connected
 
@@ -64,6 +78,10 @@ class MainMenuView(View):
 
         self.experiment_btn.setGeometry(btn_x, btn_y, btn_w, btn_h)
         self.calibration_btn.setGeometry(btn_x, btn_y + btn_h + spacing, btn_w, btn_h)
+        self.reconnect_btn.setGeometry(btn_x, btn_y + 2 * (btn_h + spacing), btn_w, btn_h)
+
+        # Reconnect is relevant only when disconnected.
+        self.reconnect_btn.setVisible(not headset_connected)
 
         self.update()
 

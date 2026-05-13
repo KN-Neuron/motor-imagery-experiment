@@ -106,11 +106,16 @@ class IpcHeadsetDriver:
         self._rpc("connect")
 
     def disconnect(self) -> None:
-        # Best-effort shutdown; caller expects idempotence.
-        try:
-            self._rpc("disconnect")
-        finally:
-            self._shutdown_worker()
+        # Disconnect hardware in the worker, but keep the worker process alive
+        # so we can reconnect later from the same driver instance.
+        self._rpc("disconnect")
+
+    def shutdown(self) -> None:
+        """Terminate the worker process and close the IPC channel.
+
+        Use this only when you are done with the driver instance permanently.
+        """
+        self._shutdown_worker()
 
     def start_stream(self) -> None:
         self._rpc("start_stream")

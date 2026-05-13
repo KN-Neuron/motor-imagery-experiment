@@ -1,15 +1,12 @@
-from typing import override, TYPE_CHECKING
+from typing import override
 from PyQt6.QtCore import QElapsedTimer
 from pathlib import Path
 
 from src.sample_manager.sample_manager import SampleManager, ExperimentStep
 from src.gui.gui_manager import ExperimentEvent
-from src.flow_controller.session_saver.session_saver import SessionSaver
+from src.session_saver.session_saver import SessionSaver
 from . import FlowState
 
-
-if TYPE_CHECKING:
-    from .main_menu_state import MainMenuState
 
 class ExperimentState(FlowState):
     """Handles experiment procedures and phase transitions."""
@@ -39,7 +36,6 @@ class ExperimentState(FlowState):
             return
 
         self._begin_first_step()
-        self._log_experiment_start(config)
 
     @override
     def tick(self):
@@ -68,14 +64,17 @@ class ExperimentState(FlowState):
         """If running with EEG and headset went away, mark it and bail to menu."""
         if self.no_eeg_mode:
             return False
-        if self.eeg_headset is not None and self.eeg_headset.is_connected():
+        if self.flow_controller.headset_connected:
             return False
 
         from .main_menu_state import MainMenuState
+
         print("[ExperimentState] EEG headset disconnected — aborting session")
         if self.session_saver is not None:
             self.session_saver.add_marker("DISCONNECTED")
+
         self.flow_controller.change_state(MainMenuState)
+
         return True
 
     @override
@@ -99,6 +98,7 @@ class ExperimentState(FlowState):
         if config is None:
             self.flow_controller.change_state(MainMenuState)
             return None
+
         return config
 
     def _setup_session(self, config) -> bool:
@@ -117,20 +117,27 @@ class ExperimentState(FlowState):
         self.is_paused = False
 
         if not self.no_eeg_mode:
-            try:
-                self.eeg_headset.start()
-            except Exception as e:
-                print(f"[ExperimentState] Error starting EEG headset: {e}")
+            if not self._setup_headset(config):
                 self.flow_controller.change_state(MainMenuState)
                 return False
-            self.session_saver = SessionSaver(
-                channel_labels=self.eeg_headset.channel_labels,
-                sample_rate=self.eeg_headset.sample_rate,
-                output_dir=Path("sessions/experiments"),
-                session_name=config.session_name,
-            )
-            self.session_saver.start_session()
-            self.eeg_headset.add_subscriber(self.session_saver.on_chunk)
+
+        return True
+
+    def _setup_headset(self, config) -> bool:
+        try:
+            self.eeg_headset.start()
+        except Exception as e:
+            print(f"[ExperimentState] Error starting EEG headset: {e}")
+            return False
+
+        self.session_saver = SessionSaver(
+            channel_labels=self.eeg_headset.channel_labels,
+            sample_rate=self.eeg_headset.sample_rate,
+            output_dir=Path("sessions/experiments"),
+            session_name=config.session_name,
+        )
+        self.session_saver.start_session()
+        self.eeg_headset.add_subscriber(self.session_saver.on_chunk)
 
         return True
 
@@ -142,18 +149,6 @@ class ExperimentState(FlowState):
             self.session_saver.add_marker("experiment_start")
 
         self.gui_manager.show_experiment()
-
-    def _log_experiment_start(self, config):
-        print(
-            f"[ExperimentState] Experiment started — {self.total_steps} steps, "
-            f"{config.trials_per_class} trials/class, strategy={config.strategy}, "
-            f"no_eeg_mode={self.no_eeg_mode}"
-        )
-        if self.current_step:
-            print(
-                f"[ExperimentState] First step: {self.current_step.step_type.value} "
-                f"for {self.current_step.duration_ms}ms"
-            )
 
     def _update_gui(self):
         progress_percent = (
@@ -176,6 +171,7 @@ class ExperimentState(FlowState):
                 return True
             elif event == ExperimentEvent.PAUSE:
                 self._handle_pause_event()
+
         return False
 
     def _handle_pause_event(self):
@@ -183,6 +179,7 @@ class ExperimentState(FlowState):
         self.step_was_paused = True
         if not self.no_eeg_mode:
             self.session_saver.add_marker("PAUSED" if self.is_paused else "RESUMED")
+
         print("Experiment PAUSED" if self.is_paused else "Experiment RESUMED")
 
     def _advance_to_next_step(self):
@@ -203,14 +200,17 @@ class ExperimentState(FlowState):
 
     def _teardown_session(self):
         if self.session_saver is not None:
-            try:
-                self.eeg_headset.remove_subscriber(self.session_saver.on_chunk)
-                self.session_saver.stop_session()
-            except Exception as e:
-                print(f"[ExperimentState] Error stopping session: {e}")
+            self._teardown_headset()
 
         if not self.no_eeg_mode:
             try:
                 self.eeg_headset.stop()
             except Exception as e:
                 print(f"[ExperimentState] Error stopping EEG headset: {e}")
+
+    def _teardown_headset(self):
+        try:
+            self.eeg_headset.remove_subscriber(self.session_saver.on_chunk)
+            self.session_saver.stop_session()
+        except Exception as e:
+            print(f"[ExperimentState] Error stopping session: {e}")
