@@ -92,7 +92,8 @@ class MainMenuView(View):
         width = self.width()
         height = self.height()
 
-        title_font = QFont('Arial', 56, QFont.Weight.Bold)
+        title_font = QFont('Arial', 56)
+        title_font.setWeight(QFont.Weight.Bold)
         painter.setFont(title_font)
         painter.setPen(QColor(255, 255, 255))
         title_text = "Motor Imagery Experiment"
@@ -109,7 +110,8 @@ class MainMenuView(View):
                 Qt.TransformationMode.SmoothTransformation
             )
 
-            kn_font = QFont('Arial', 24, QFont.Weight.Bold)
+            kn_font = QFont('Arial', 24)
+            kn_font.setWeight(QFont.Weight.Bold)
             painter.setFont(kn_font)
             painter.setPen(QColor(200, 200, 200))
             kn_text = "KN NEURON"

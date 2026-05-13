@@ -63,7 +63,8 @@ class SidebarButton(QWidget):
 
         # Label
         label_color = QColor(160, 165, 200) if self.is_hovered else QColor(80, 85, 115)
-        label_font = QFont("Segoe UI", 7, QFont.Weight.Medium)
+        label_font = QFont("Segoe UI", 7)
+        label_font.setWeight(QFont.Weight.Medium)
         painter.setFont(label_font)
         painter.setPen(label_color)
         painter.drawText(0, h - 18, w, 14, Qt.AlignmentFlag.AlignHCenter, self.label)
@@ -137,7 +138,8 @@ class Sidebar(QWidget):
         painter.drawRect(0, 0, w, 3)
 
         # Hexagon logo character
-        hex_font = QFont("Segoe UI Symbol", 18, QFont.Weight.Bold)
+        hex_font = QFont("Segoe UI Symbol", 18)
+        hex_font.setWeight(QFont.Weight.Bold)
         painter.setFont(hex_font)
         painter.setPen(QColor(110, 130, 240))
         painter.drawText(0, 3, w, 41, Qt.AlignmentFlag.AlignCenter, "⬡")

@@ -89,7 +89,8 @@ class ExperimentView(View):
                 self.step_type,
                 (QColor(255, 255, 255), self.step_type.value.upper(), None)
             )
-            step_font = QFont('Arial', 32, QFont.Weight.Bold)
+            step_font = QFont('Arial', 32)
+            step_font.setWeight(QFont.Weight.Bold)
             painter.setFont(step_font)
             painter.setPen(color)
             step_w = painter.fontMetrics().horizontalAdvance(text)

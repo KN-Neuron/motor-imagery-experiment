@@ -29,7 +29,9 @@ class CalibrationConfigDialog(QDialog):
         layout.setSpacing(12)
 
         title = QLabel("Calibration Configuration")
-        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        title_font = QFont("Segoe UI", 13)
+        title_font.setWeight(QFont.Weight.Bold)
+        title.setFont(title_font)
         title.setStyleSheet("color: rgb(180, 190, 255);")
         layout.addWidget(title)
         layout.addWidget(separator())

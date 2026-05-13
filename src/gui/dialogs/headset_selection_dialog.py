@@ -33,7 +33,9 @@ class HeadsetSelectionDialog(QDialog):
         layout.setSpacing(12)
 
         title = QLabel("Select EEG Headset")
-        title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        title_font = QFont("Segoe UI", 13)
+        title_font.setWeight(QFont.Weight.Bold)
+        title.setFont(title_font)
         title.setStyleSheet("color: rgb(180, 190, 255);")
         layout.addWidget(title)
         layout.addWidget(separator())
@@ -41,25 +43,9 @@ class HeadsetSelectionDialog(QDialog):
         models = self._load_available_models()
 
         self.model_combo = QComboBox()
-        self.model_combo.setStyleSheet("""
-            QComboBox {
-                background-color: rgb(40, 40, 58);
-                color: rgb(220, 220, 240);
-                border: 1px solid rgba(100, 100, 150, 120);
-                border-radius: 6px;
-                padding: 4px 8px;
-                font-size: 14px;
-                font-family: 'Segoe UI', Arial;
-            }
-            QComboBox::drop-down { border: none; width: 20px; }
-            QComboBox QAbstractItemView {
-                background-color: rgb(40, 40, 58);
-                color: rgb(220, 220, 240);
-                selection-background-color: rgb(70, 90, 160);
-                font-size: 14px;
-                font-family: 'Segoe UI', Arial;
-            }
-        """)
+        combo_font = QFont("Segoe UI", 11)
+        self.model_combo.setFont(combo_font)
+        self.model_combo.setStyleSheet("QComboBox::drop-down { border: none; width: 20px; }")
         self.model_combo.addItem("MOCK (no hardware)", self.MOCK_SENTINEL)
         for m in models:
             self.model_combo.addItem(m, m)
