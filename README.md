@@ -35,17 +35,13 @@ poetry install --with dev
 poetry run python -m src.main
 ```
 
-The app starts in the main menu, with no headset connected. From there:
+On launch, a headset selection dialog appears. Pick a model from the dropdown (populated from `brainaccess.config.yaml`) or select **MOCK (no hardware)** to run on synthetic data. Click **Connect** -- this is synchronous and may freeze for a few seconds while the SDK negotiates Bluetooth.
 
-1. Pick a model from the dropdown (populated from `brainaccess.config.yaml`).
-2. Optionally tick **Use mock driver** to run on synthetic data with that model's channel layout.
-3. Click **Connect**. This is synchronous -- the UI may freeze for a few seconds while the SDK negotiates Bluetooth.
-
-Once connected, you can start a calibration or experiment session. The headset can be swapped at any time (Disconnect → change selection → Connect) without restarting the app. If Bluetooth drops mid-session, the app writes a `DISCONNECTED` marker into the EDF, returns to the menu, and you can reconnect from there.
+Once connected, the main menu appears and you can start a calibration or experiment session. If Bluetooth drops mid-session, the app writes a `DISCONNECTED` marker into the EDF, returns to the menu, and you can reconnect from there.
 
 ### No-headset mode (Alt-shortcut)
 
-For UI smoke tests without any driver, hold **Alt** while clicking Start Experiment / Start Calibration. The session runs without an EEG stream: no EDF output, the classifier returns random predictions. For a more realistic dry-run with valid EDF output, use the **Use mock driver** checkbox in the menu instead.
+For UI smoke tests without any driver, hold **Alt** while clicking Start Experiment / Start Calibration. The session runs without an EEG stream: no EDF output, the classifier returns random predictions. For a more realistic dry-run with valid EDF output, select **MOCK (no hardware)** in the headset selection dialog instead.
 
 ## Configuration
 
@@ -194,15 +190,16 @@ src/
   main.py                              # Entry point (creates GUIManager + FlowController)
   trials_config/trials_config.py       # YAML config loader + dataclasses
 
+  session_saver/
+    session_saver.py                   # Continuous EEG-to-EDF writer + markers + events TSV
+
   flow_controller/
     flow_controller.py                 # Main loop (QTimer 10ms tick), state machine, owns eeg_headset
     states/
       flow_state.py                    # Base state class (enter/tick/exit lifecycle)
-      main_menu_state.py               # Main menu: headset selection, connect/disconnect, session entry
+      main_menu_state.py               # Main menu: session entry, reconnect after disconnect
       calibration_state.py             # Calibration: cue -> classify -> show result
       experiment_state.py              # Experiment: cue -> record
-    session_saver/
-      session_saver.py                 # Continuous EEG-to-EDF writer + markers + events TSV
 
   eeg_headset/
     eeg_headset.py                     # Headset interface (poll, subscribe, annotate)
@@ -214,6 +211,10 @@ src/
       brainaccess.py                   # BrainAccess SDK driver (delegates is_connected/is_streaming to SDK)
       mock.py                          # Mock driver (synthetic EEG data)
       playback.py                      # Replay driver (plays back recorded EEG)
+    ipc/
+      ipc_driver.py                    # IPC wrapper driver (Windows: runs BrainAccess in subprocess)
+      worker.py                        # Subprocess entrypoint (runs real driver, communicates via pipe)
+      protocol.py                      # Message types + DriverRecipe TypedDict
 
   sample_manager/
     sample_manager.py                  # Trial sequence generator (FIXATION -> CUE -> REST)
@@ -224,13 +225,14 @@ src/
     gui_manager.py                     # GUI coordinator, view switching
     views/
       view.py                          # Base view class (shortcuts, events)
-      main_menu_view.py                # Main menu view (model dropdown + connect/disconnect)
+      main_menu_view.py                # Main menu view
       experiment_view.py               # Experiment view
       calibration_view.py              # Calibration view (+ classification result)
       utils/pixmap_cache.py            # Cached image loader for cue assets
     dialogs/
       _shared.py                       # Shared dialog styles + layout helpers
       _cues.py                         # Cue checkbox helpers (used by experiment + calibration dialogs)
+      headset_selection_dialog.py      # Headset selection at app launch
       experiment_config_dialog.py      # Experiment session setup
       calibration_config_dialog.py     # Calibration session setup
     shared/

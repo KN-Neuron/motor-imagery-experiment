@@ -50,7 +50,8 @@ Desktopowa aplikacja do prowadzenia sesji EEG: kalibracyjnych (użytkownik wykon
 ### 3.3 Główne komponenty
 
 - **FlowController** — główna pętla (QTimer 10ms), maszyna stanów (MainMenu / Calibration / Experiment); trzyma referencję do aktualnie wybranego headsetu (może być `None`).
-- **MainMenuState** — pełni rolę "lobby" konfiguracyjnego: użytkownik wybiera model headsetu z listy, opcjonalnie zaznacza tryb mock (syntetyczne dane), klika Connect. Stan tworzy driver, sprawdza połączenie i ustawia headset na FlowController. Tu też następuje powrót po sesji oraz reakcja na rozłączenie czepka.
+- **HeadsetSelectionDialog** — dialog pokazywany przy starcie aplikacji; użytkownik wybiera model headsetu z listy (wypełnianej z `brainaccess.config.yaml`) lub tryb MOCK (syntetyczne dane), klika Connect. Dialog tworzy driver, sprawdza połączenie i przekazuje gotowy `EEGHeadset` do FlowController.
+- **MainMenuState** — pełni rolę "lobby" między sesjami: uruchamia kalibrację lub eksperyment, obsługuje powrót po sesji i reakcję na rozłączenie czepka (przycisk Reconnect).
 - **EEGHeadset** — abstrakcja headseta; obsługuje BrainAccess SDK (HALO / MIDI / MAXI / SAMPLE) oraz MockDriver (syntetyczne dane). Wybór sterownika jest dynamiczny — dokonywany w runtime przez menu, nie przy starcie.
 - **SampleManager** — generuje sekwencje prób (FIXATION → CUE → REST) wg konfiguracji.
 - **SessionSaver** — subskrybent EEGHeadset; zapisuje dane na bieżąco do EDF+ i events.tsv.
@@ -86,9 +87,9 @@ Desktopowa aplikacja do prowadzenia sesji EEG: kalibracyjnych (użytkownik wykon
   - Dlaczego: umożliwia pracę i testowanie całego stosu bez fizycznego headseta (sygnały alfa + szum gaussowski)
   - Alternatywy: mocker w testach — nie pokrywa integracji GUI/flow
 
-- **Wybór headseta z menu głównego (zamiast dialogu startowego):**
-  - Dlaczego: można w trakcie jednego uruchomienia aplikacji przełączać się między różnymi czepkami i trybem mock bez restartu. Po rozłączeniu fizycznym (rozładowany akumulator, przerwany Bluetooth) użytkownik wraca do menu, łączy ponownie i kontynuuje pracę.
-  - Alternatywy: dialog jednorazowy przy starcie (poprzednia wersja) — wymuszał restart aplikacji przy każdej zmianie sprzętu i tracił dane gdy czepek odpadał w trakcie sesji.
+- **Dialog wyboru headseta przy starcie:**
+  - Dlaczego: wybranie czepka jest warunkiem koniecznym do jakiejkolwiek pracy z aplikacją — dialog wymusza tę decyzję przed wejściem do menu. Użytkownik wybiera model z listy (lub MOCK) i klika Connect; dopiero po udanym połączeniu pojawia się menu główne.
+  - Alternatywy: wybór headseta w menu głównym (poprzednia wersja) — komplikował menu i wymagał dodatkowego stanu "brak headseta" obsługiwanego w każdym miejscu aplikacji. Po rozłączeniu fizycznym użytkownik wraca do menu i może wcisnąć Reconnect bez ponownego dialogu.
 
 - **Konfiguracja modeli w pliku YAML:**
   - Dlaczego: dropdown w menu jest budowany z `brainaccess.config.yaml` w runtime — dodanie nowego czepka (np. nowy egzemplarz Maxi z innym numerem seryjnym) nie wymaga zmiany w kodzie aplikacyjnym, tylko wpisu w YAML i odpowiednika w `HeadsetModel` enum.
@@ -100,13 +101,17 @@ Desktopowa aplikacja do prowadzenia sesji EEG: kalibracyjnych (użytkownik wykon
 
 Pełna struktura katalogów i opis poszczególnych modułów: zob. [README.md → Project structure](../README.md#project-structure).
 
+Kluczowe zmiany strukturalne względem pierwszej iteracji: `session_saver/` wyniesiony na poziom `src/` (był pod `flow_controller/`); w `eeg_headset/` dodano podmoduł `ipc/` z `IpcHeadsetDriver`, `worker.py` i `protocol.py` — izolacja BrainAccess SDK w subprocesie na Windows.
+
 ### 5.1 Kluczowe elementy
 
 **FlowController** — centralny orkiestrator. Każdy tick (10ms):
 1. `eeg_headset.poll()` — odczyt nowych próbek, przekazanie do subskrybentów (jeśli headset jest podłączony i strumień aktywny).
 2. `current_state.tick()` — stan przetwarza zdarzenia GUI i zarządza przejściami.
 
-**MainMenuState** — odpowiada za konfigurację sprzętu w trakcie działania aplikacji. Wczytuje listę dostępnych modeli z `brainaccess.config.yaml`, prezentuje dropdown w menu głównym, na żądanie tworzy odpowiedni driver (BrainAccessDriver lub MockDriver z tym samym configem) i ustawia go na FlowController. Reaguje też na zdarzenia rozłączenia: gdy headset zniknie w trakcie sesji, ExperimentState/CalibrationState wykrywają to i wracają do menu, gdzie użytkownik może spokojnie połączyć ponownie.
+**HeadsetSelectionDialog** — wyświetlany przy starcie aplikacji. Wczytuje listę dostępnych modeli z `brainaccess.config.yaml`, prezentuje dropdown; użytkownik wybiera model (lub MOCK) i klika Connect. Dialog tworzy odpowiedni driver (BrainAccessDriver lub MockDriver) i przekazuje gotowy `EEGHeadset` do FlowController. Dopiero po udanym połączeniu otwiera się menu główne.
+
+**MainMenuState** — "lobby" między sesjami. Obsługuje start kalibracji/eksperymentu oraz Reconnect po rozłączeniu czepka. Gdy headset zniknie w trakcie sesji, ExperimentState/CalibrationState wykrywają to i wracają do menu, gdzie użytkownik może połączyć ponownie bez restartu aplikacji.
 
 **SessionSaver** — subskrybuje dane z EEGHeadset. Każdy chunk jest buforowany i zapisywany do EDF co 1 sekundę (pełny rekord). Stany wywołują tylko `add_marker(label)` przy przejściach — reszta jest automatyczna.
 
@@ -116,7 +121,7 @@ Pełna struktura katalogów i opis poszczególnych modułów: zob. [README.md �
 
 **Precyzja znaczników czasowych w EDF:** Znaczniki nie są zapisywane z timestampem zegara systemowego, lecz z indeksem próbki (`sample_idx / sample_rate`). Eliminuje to dryft i niedokładności wynikające z opóźnień pętli czy OS schedulera.
 
-**MockDriver z realistycznym sygnałem:** Syntetyczne dane to fale sinusoidalne w paśmie alfa (8–12 Hz) z szumem gaussowskim w zakresie ±60 µV — wystarczające do testowania całego stosu bez headseta, włącznie z zapisem EDF. MockDriver może operować na configu dowolnego modelu czepka (HALO, MIDI, MAXI, SAMPLE), więc emuluje zarówno liczbę kanałów jak i nazwy elektrod tego konkretnego sprzętu.
+**MockDriver z realistycznym sygnałem:** Syntetyczne dane to fale sinusoidalne z szumem gaussowskim — każdy kanał ma inną częstotliwość (8 Hz, 10 Hz, 12 Hz, 14 Hz... zależnie od indeksu kanału), amplituda ~50 µV, szum ~10 µV. Wystarczające do testowania całego stosu bez headseta, włącznie z zapisem EDF. MockDriver może operować na configu dowolnego modelu czepka (HALO, MIDI, MAXI, SAMPLE), więc emuluje zarówno liczbę kanałów jak i nazwy elektrod tego konkretnego sprzętu.
 
 **Wykrywanie rozłączenia z natywnego SDK:** `BrainAccessDriver.is_connected` nie trzyma własnej flagi — deleguje pytanie do `EEGManager.is_connected()` z SDK BrainAccess, które zna prawdziwy stan łącza Bluetooth. Dzięki temu odpięcie czepka w trakcie nagrywania jest wykrywane natychmiast w pętli FlowController, sesja zostaje czysto zakończona z markerem `DISCONNECTED` w EDF, a aplikacja pozostaje w pełni funkcjonalna (nie wymaga restartu).
 
@@ -136,11 +141,11 @@ W skrócie: `poetry install`, `poetry run python -m src.main`, w menu głównym 
 
 ### 7.1 Co działa
 
-- Pełny przepływ kalibracji: sekwencja cue → zapis EEG → wynik klasyfikatora (obecnie placeholder — losowy)
+- Pełny przepływ kalibracji: sekwencja cue → zapis EEG → wynik klasyfikatora (placeholder: w trybie z EEG zwraca zawsze poprawną klasę, w trybie no_eeg_mode — losową)
 - Pełny przepływ eksperymentu: sekwencja prób z ciągłym zapisem EEG
 - Eksport danych: EDF+ z adnotacjami + events.tsv (BIDS)
 - Tryb mock: pełna funkcjonalność bez fizycznego headseta, z konfiguracją kanałów dowolnego modelu
-- Dynamiczny wybór headseta z menu głównego (HALO 4CH, MIDI 16CH, MAXI 32CH, SAMPLE 64CH) — bez restartu aplikacji można przełączać sprzęt i tryb mock
+- Wybór headseta w dialogu startowym (HALO 4CH, MIDI 16CH, MAXI 32CH, SAMPLE 64CH oraz MOCK) — po rozłączeniu możliwy Reconnect z menu bez restartu aplikacji
 - Wykrywanie rozłączenia czepka w trakcie sesji: marker `DISCONNECTED` w EDF, czyste zamknięcie sesji, powrót do menu
 - Konfiguracja sesji przez UI (typy cue, liczba prób, nazwa folderu)
 
@@ -156,7 +161,7 @@ print(raw.annotations)
 
 ### 7.3 Metryki
 
-Klasyfikator w tej aplikacji jest placeholderem (losowe odpowiedzi) — rzeczywisty model klasyfikacyjny jest częścią szerszego projektu BrainBoard i będzie integrowany osobno. Aplikacja jest odpowiedzialna za zbieranie danych, nie za ich analizę.
+Klasyfikator w tej aplikacji jest placeholderem — w trybie z EEG zwraca zawsze poprawną klasę (`current_step.step_type`), w trybie no_eeg_mode zwraca losową klasę z puli CLASSIFIABLE. Rzeczywisty model klasyfikacyjny jest częścią szerszego projektu BrainBoard i będzie integrowany osobno. Aplikacja jest odpowiedzialna za zbieranie danych, nie za ich analizę.
 
 ### 7.4 Format danych wyjściowych
 
@@ -229,11 +234,35 @@ Opis: Pierwsza wersja pokazywała jednorazowy dialog wyboru headseta przy starci
       na mock dla testu UI) wymagała restartu całej aplikacji. Po rozłączeniu
       czepka też nie było jak go ponownie podłączyć bez restartu.
 
-Rozwiązanie: Wybór headseta przeniesiony do menu głównego — dropdown z modelami
-             z YAML, checkbox "use mock driver", przyciski Connect/Disconnect.
-             FlowController.eeg_headset jest opcjonalny i ustawiany dynamicznie
-             przez MainMenuState. Można w jednej sesji aplikacji przełączyć się
-             między czepkami bez utraty stanu reszty aplikacji.
+Rozwiązanie: Dialog wyboru headseta pozostał przy starcie, ale po rozłączeniu
+             czepka w trakcie sesji użytkownik wraca do menu głównego i może
+             wcisnąć Reconnect bez ponownego otwierania dialogu.
+             FlowController.eeg_headset jest opcjonalny — ustawiany przez dialog
+             przy starcie, aktualizowany przez Reconnect w MainMenuState.
+```
+
+```
+Problem: Null pointer dereference w BrainAccess SDK na Windows
+
+Opis: Podczas integracji z BrainAccess SDK na Windows aplikacja crashowała
+      z EXCEPTION_ACCESS_VIOLATION (odczyt spod adresu 0x0000000000000000)
+      podczas tworzenia obiektu EEGManager — jeszcze przed nawiązaniem
+      połączenia BLE z urządzeniem. Problem nie dotyczył konfiguracji EEG
+      ani czepka, lecz wewnętrznej inicjalizacji natywnego runtime'u SDK.
+
+      Analiza stacktrace wskazała na natywną bibliotekę DLL (_dll.ba_eeg_manager_new()).
+      Jest to klasyczny null pointer dereference w bibliotece C — crash następuje
+      bezpośrednio w kodzie natywnym i nie można go przechwycić mechanizmem
+      wyjątków Pythona. Przyczyna: wcześniejsze załadowanie PyQt6 wprowadza
+      zależności DLL, które kolidują z inicjalizacją natywnego runtime'u SDK
+      BrainAccess na Windows.
+
+Rozwiązanie: Na Windows driver BrainAccess jest uruchamiany w osobnym subprocesie
+             (multiprocessing.spawn), który startuje bez załadowanego PyQt6.
+             Komunikacja z procesem głównym odbywa się przez pipe (IpcHeadsetDriver).
+             Na Linux/macOS problem nie występuje — driver działa w tym samym procesie.
+             Obejście jest przezroczyste dla reszty aplikacji: IpcHeadsetDriver
+             implementuje ten sam protokół HeadsetDriver co BrainAccessDriver.
 ```
 
 ---
