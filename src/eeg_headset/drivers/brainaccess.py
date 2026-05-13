@@ -103,12 +103,16 @@ class BrainAccessDriver:
 
         raw_hw_data = np.concatenate(chunks, axis=1)
 
+        # SDK hw_id (1-based) maps to cap index (0-based) as hw_id = cap_idx + 1.
+        # Build row indices in cap order to preserve channel_map ordering.
         eeg_row_indices = [
-            row_idx
-            for hw_id, row_idx in self._eeg.channels_indexes.items()
-            if self._eeg.channels_type[hw_id] == "EEG"
+            self._eeg.channels_indexes[cap_idx + 1]
+            for cap_idx in sorted(self._config.channel_map.keys())
+            if (cap_idx + 1) in self._eeg.channels_indexes
+            and self._eeg.channels_type.get(cap_idx + 1) == "EEG"
         ]
 
-        eeg_only_data = raw_hw_data[eeg_row_indices, :]
+        # SDK data is in nanovolts; convert to µV for EDF and downstream processing.
+        eeg_only_data = raw_hw_data[eeg_row_indices, :] * 1e-3
 
         return eeg_only_data
