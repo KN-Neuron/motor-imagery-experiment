@@ -5,6 +5,7 @@ import yaml
 class HeadsetModel(Enum):
     HALO_4CH = "HALO_4CH"
     MIDI_16CH_BASE = "MIDI_16CH_BASE"
+    MAXI_32CH = "MAXI_32CH"
     SAMPLE_64CH = "SAMPLE_64CH"
 
 
@@ -44,3 +45,14 @@ class HeadsetConfig:
             raise ValueError(
                 f"Channel map size and n_channels mismatch for {model_name}"
             )
+
+    @classmethod
+    def mock(cls, n_channels: int = 4, sample_rate_hz: int = 250) -> "HeadsetConfig":
+        """Create a dummy config for use with MockDriver (no YAML required)."""
+        obj = object.__new__(cls)
+        obj.model = None
+        obj.device_name = "MOCK"
+        obj.n_channels = n_channels
+        obj.sample_rate_hz = sample_rate_hz
+        obj.channel_map = {i: f"CH{i}" for i in range(n_channels)}
+        return obj

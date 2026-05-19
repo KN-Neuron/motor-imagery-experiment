@@ -5,7 +5,7 @@ from .views.main_menu_view import MainMenuView, MainMenuEvent
 from .views.experiment_view import ExperimentView, ExperimentEvent
 from .views.calibration_view import CalibrationView, CalibrationEvent
 from .shared.sidebar import Sidebar
-from .shared.config_dialog import CalibrationConfigDialog, ExperimentConfigDialog
+from .dialogs import CalibrationConfigDialog, ExperimentConfigDialog
 from src.trials_config.trials_config import (
     CalibrationConfig, ExperimentConfig,
     load_calibration_config, load_experiment_config,

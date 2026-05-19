@@ -22,9 +22,6 @@ class BrainAccessDriver:
         self._eeg = acquisition.EEG(mode="accumulate")
         self._mgr = EEGManager()
 
-        self._is_connected = False
-        self._is_streaming = False
-
     @property
     def sampling_rate(self) -> int:
         return self._config.sample_rate_hz
@@ -32,21 +29,21 @@ class BrainAccessDriver:
     @property
     def channel_count(self) -> int:
         return self._config.n_channels
-    
+
     @property
     def is_connected(self) -> bool:
-        return self._is_connected
-    
+        return self._mgr.is_connected()
+
     @property
     def is_streaming(self) -> bool:
-        return self._is_streaming
-    
+        return self._mgr.is_streaming()
+
     @property
     def config(self) -> HeadsetConfig:
         return self._config
 
     def connect(self) -> None:
-        if self._is_connected:
+        if self.is_connected:
             return
 
         self._eeg.setup(
@@ -55,50 +52,45 @@ class BrainAccessDriver:
             cap=self._config.channel_map,
             sfreq=self._config.sample_rate_hz,
         )
-        self._is_connected = True
 
     def disconnect(self) -> None:
-        if not self._is_connected:
+        if not self.is_connected:
             return
 
-        self.stop_stream()
+        if self.is_streaming:
+            self.stop_stream()
         self._mgr.disconnect()
 
     def start_stream(self) -> None:
-        if not self._is_connected:
+        if not self.is_connected:
             raise RuntimeError("Cannot start stream: Headset not connected.")
 
-        if self._is_streaming:
+        if self.is_streaming:
             return
 
         self._eeg.start_acquisition()
-        self._is_streaming = True
-        return
 
     def stop_stream(self) -> None:
-        if not self._is_connected:
+        if not self.is_connected:
             raise RuntimeError("Cannot stop stream: Headset not connected.")
 
-        if not self._is_streaming:
+        if not self.is_streaming:
             return
 
         self._eeg.stop_acquisition()
-        self._is_streaming = False
-        return
 
     def annotate(self, text: str) -> None:
-        if not self._is_connected:
+        if not self.is_connected:
             raise RuntimeError("Cannot annotate: Headset not connected.")
-        if not self._is_streaming:
+        if not self.is_streaming:
             raise RuntimeError("Cannot annotate: Headset not streaming.")
 
         self._eeg.annotate(text)
-        return
 
     def read_available_samples(self) -> np.ndarray:
-        if not self._is_connected:
+        if not self.is_connected:
             raise RuntimeError("Cannot read samples: Headset not connected.")
-        if not self._is_streaming:
+        if not self.is_streaming:
             raise RuntimeError("Cannot read samples: Headset not streaming.")
 
         # safely acquire chunks and clear the buffer
@@ -111,12 +103,16 @@ class BrainAccessDriver:
 
         raw_hw_data = np.concatenate(chunks, axis=1)
 
+        # SDK hw_id (1-based) maps to cap index (0-based) as hw_id = cap_idx + 1.
+        # Build row indices in cap order to preserve channel_map ordering.
         eeg_row_indices = [
-            row_idx
-            for hw_id, row_idx in self._eeg.channels_indexes.items()
-            if self._eeg.channels_type[hw_id] == "EEG"
+            self._eeg.channels_indexes[cap_idx + 1]
+            for cap_idx in sorted(self._config.channel_map.keys())
+            if (cap_idx + 1) in self._eeg.channels_indexes
+            and self._eeg.channels_type.get(cap_idx + 1) == "EEG"
         ]
 
-        eeg_only_data = raw_hw_data[eeg_row_indices, :]
+        # SDK data is in nanovolts; convert to µV for EDF and downstream processing.
+        eeg_only_data = raw_hw_data[eeg_row_indices, :] * 1e-3
 
         return eeg_only_data

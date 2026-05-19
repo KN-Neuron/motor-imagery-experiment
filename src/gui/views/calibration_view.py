@@ -100,7 +100,8 @@ class CalibrationView(View):
         )
 
         # Action label
-        action_font = QFont("Arial", 32, QFont.Weight.Bold)
+        action_font = QFont("Arial", 32)
+        action_font.setWeight(QFont.Weight.Bold)
         painter.setFont(action_font)
         painter.setPen(color)
         action_w = painter.fontMetrics().horizontalAdvance(label)
@@ -156,7 +157,8 @@ class CalibrationView(View):
         painter.drawText((w - header_w) // 2, int(h * 0.22) + painter.fontMetrics().ascent(), header)
 
         row_font = QFont("Arial", 26)
-        label_font = QFont("Arial", 26, QFont.Weight.Bold)
+        label_font = QFont("Arial", 26)
+        label_font.setWeight(QFont.Weight.Bold)
 
         center_x = w // 2
         row1_y = int(h * 0.36) + painter.fontMetrics().ascent()
@@ -185,7 +187,8 @@ class CalibrationView(View):
         draw_row(row2_y, "Classified:", classified_label, classified_color)
 
         # Valid ✓ / Invalid ✗ indicator
-        indicator_font = QFont("Segoe UI Symbol", 48, QFont.Weight.Bold)
+        indicator_font = QFont("Segoe UI Symbol", 48)
+        indicator_font.setWeight(QFont.Weight.Bold)
         painter.setFont(indicator_font)
         indicator_color = QColor(60, 210, 100) if correct else QColor(220, 70, 70)
         painter.setPen(indicator_color)
