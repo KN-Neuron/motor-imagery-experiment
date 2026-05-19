@@ -242,6 +242,29 @@ Rozwiązanie: Dialog wyboru headseta pozostał przy starcie, ale po rozłączeni
 ```
 
 ```
+Problem: Kwantyzacja czasu trwania prób w events.tsv do wielokrotności ~100ms
+
+Opis: Wartości duration w events.tsv (np. dla cue 4000ms) bywają zapisane jako
+      4100ms lub 3900ms zamiast dokładnie 4000ms. Skoki są wielokrotnością ~100ms,
+      nie są losowym jitterem.
+
+Przyczyna: BrainAccess SDK dostarcza dane przez Bluetooth w paczkach po ~25 próbek
+           (250 Hz → paczka co ~100ms). add_marker() zapisuje znacznik jako bieżący
+           sample_idx (total_samples + buffer_pos). Gdy QElapsedTimer wykryje
+           przekroczenie duration_ms i wywoła add_marker(), buffer_pos wskazuje
+           na granicę ostatnio dostarczonej paczki BT — stąd granulacja 100ms.
+
+Wpływ na dane: Czas trwania bodźca dla badanego jest poprawny — QElapsedTimer
+               pilnuje rzeczywistego czasu wyświetlania cue. Błąd dotyczy tylko
+               pozycji markera w pliku TSV (i EDF annotations), nie samego sygnału EEG.
+               Dla motor imagery różnica 100ms jest pomijalna.
+
+Nierozwiązane: Można by korygować sample_idx o overshoot (elapsed - duration_ms
+               przeliczony na próbki), ale przy aktualnym zastosowaniu nie ma
+               wystarczającego uzasadnienia dla tej złożoności.
+```
+
+```
 Problem: Null pointer dereference w BrainAccess SDK na Windows
 
 Opis: Podczas integracji z BrainAccess SDK na Windows aplikacja crashowała

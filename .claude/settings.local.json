@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\tomas\\\\Desktop\\\\github\\\\neuron\\\\hex-o-spell-experiment\" -Recurse -Depth 2)",
-      "Bash(Select-Object FullName, PSIsContainer)",
-      "Bash(Sort-Object FullName)"
-    ]
-  }
-}
