@@ -2,6 +2,7 @@ from typing import Callable, List
 import numpy as np
 from typing import Optional
 from .drivers import HeadsetDriver
+from .headset_config import HeadsetConfig
 from .ring_buffer import RingBuffer
 
 EegSubscriberCallback = Callable[[np.ndarray], None]
@@ -22,6 +23,7 @@ class EEGHeadset:
             self._driver.sampling_rate,
         )
         self._subscribers: List[EegSubscriberCallback] = []
+        self._gap_subscribers: List[Callable[[int], None]] = []
         self._last_annotation_index: Optional[int] = None
 
     @property
@@ -33,12 +35,16 @@ class EEGHeadset:
         return list(self._driver.config.channel_map.values())
 
     @property
+    def config(self) -> HeadsetConfig:
+        return self._driver.config
+
+    @property
     def buffer_size_seconds(self) -> int:
         return self._buffer.capacity // self._driver.sampling_rate
 
     def is_connected(self) -> bool:
         return self._driver.is_connected
-    
+
     def is_streaming(self) -> bool:
         return self._driver.is_streaming
 
@@ -62,17 +68,36 @@ class EEGHeadset:
         """Usuwa callback z listy subskrybentów."""
         self._subscribers.remove(callback)
 
+    def add_gap_subscriber(self, callback: Callable[[int], None]) -> None:
+        """Callback(n_missing_samples), called before the data that follows a gap."""
+        self._gap_subscribers.append(callback)
+
+    def remove_gap_subscriber(self, callback: Callable[[int], None]) -> None:
+        self._gap_subscribers.remove(callback)
+
     def annotate(self, label: str) -> None:
         self._last_annotation_index = self._buffer.total_samples
         self._driver.annotate(label)
 
     def poll(self) -> None:
         new_data = self._driver.read_available_samples()
+        # Optional driver capability: number of samples known to be lost (from an
+        # SDK packet counter / timestamp). Drivers without it never report gaps.
+        pop_dropped = getattr(self._driver, "pop_dropped_samples", None)
+        dropped = int(pop_dropped()) if pop_dropped is not None else 0
+        if dropped > 0:
+            for gap_callback in self._gap_subscribers:
+                gap_callback(dropped)
         if new_data.size > 0:
             self._buffer.append(new_data)
 
             for callback in self._subscribers:
                 callback(new_data)
+
+    def get_last(self, n_samples: int) -> np.ndarray:
+        """Most recent `n_samples` samples, shape (channel_count, <=n_samples)."""
+        total = self._buffer.total_samples
+        return self._buffer.get_slice(max(0, total - n_samples), total, False)
 
     def get_output(self, seconds: int = 1) -> np.ndarray:
         """Zwraca `seconds` sekund próbek EEG o kształcie

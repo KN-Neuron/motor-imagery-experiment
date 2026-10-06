@@ -9,8 +9,7 @@ from ..eeg_headset import EEGHeadset
 
 def main() -> None:
     driver_config = HeadsetConfig(
-        model=HeadsetModel.MIDI_16CH_BASE, 
-        config_path="brainaccess.config.yaml"
+        model=HeadsetModel.MIDI_16CH_BASE, config_path="brainaccess.config.yaml"
     )
     # driver = BrainAccessDriver(driver_config)
     driver = MockDriver(driver_config)
@@ -43,6 +42,7 @@ def main() -> None:
     eeg.stop()
 
     print(samples)
+
 
 if __name__ == "__main__":
     main()

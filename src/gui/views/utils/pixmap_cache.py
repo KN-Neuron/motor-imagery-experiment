@@ -22,7 +22,8 @@ def get_pixmap_cache(step_display: dict) -> dict[ExperimentStepType, QPixmap]:
             if img_path and os.path.exists(img_path):
                 pixmap = QPixmap(img_path)
                 _PIXMAP_CACHE[step_type] = pixmap.scaled(
-                    300, 180,
+                    300,
+                    180,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )

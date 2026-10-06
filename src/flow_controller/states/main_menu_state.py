@@ -1,4 +1,4 @@
-from typing import override
+from typing import Any, override
 import time
 
 from src.gui.gui_manager import MainMenuEvent
@@ -11,25 +11,29 @@ from . import FlowState
 class MainMenuState(FlowState):
     """Handles main menu interactions: session entry."""
 
-    def __init__(self, flow_controller):
+    def __init__(self, flow_controller: Any) -> None:
         super().__init__(flow_controller)
         self._last_ui_connected: bool | None = None
         self._last_ui_update_s = 0.0
 
     @override
-    def enter(self, **kwargs):
+    def enter(self, **kwargs: Any) -> None:
         self.gui_manager.show_main_menu()
         self._last_ui_connected = None
         self._last_ui_update_s = 0.0
 
     @override
-    def tick(self):
+    def tick(self) -> None:
         headset_connected = self.flow_controller.headset_connected
 
         # Avoid repainting the main menu at 100 FPS; update only on changes
         # or at a low heartbeat rate.
         now = time.monotonic()
-        if self._last_ui_connected is None or headset_connected != self._last_ui_connected or (now - self._last_ui_update_s) > 0.5:
+        if (
+            self._last_ui_connected is None
+            or headset_connected != self._last_ui_connected
+            or (now - self._last_ui_update_s) > 0.5
+        ):
             self.gui_manager.update_main_menu(headset_connected)
             self._last_ui_connected = headset_connected
             self._last_ui_update_s = now
@@ -38,18 +42,34 @@ class MainMenuState(FlowState):
             return
 
     @override
-    def exit(self):
+    def exit(self) -> None:
         pass
 
     def _handle_events(self, headset_connected: bool) -> bool:
         """Process pending GUI events. Returns True if a state transition occurred."""
         for event in self.gui_manager.get_main_menu_events():
-            if isinstance(event, tuple) and event[0] == MainMenuEvent.EXPERIMENT_BTN_CLICKED:
-                if self._try_start_session(ExperimentState, alt_pressed=event[1], headset_connected=headset_connected, label="Experiment"):
+            if (
+                isinstance(event, tuple)
+                and event[0] == MainMenuEvent.EXPERIMENT_BTN_CLICKED
+            ):
+                if self._try_start_session(
+                    ExperimentState,
+                    alt_pressed=event[1],
+                    headset_connected=headset_connected,
+                    label="Experiment",
+                ):
                     return True
 
-            elif isinstance(event, tuple) and event[0] == MainMenuEvent.CALIBRATION_BTN_CLICKED:
-                if self._try_start_session(CalibrationState, alt_pressed=event[1], headset_connected=headset_connected, label="Calibration"):
+            elif (
+                isinstance(event, tuple)
+                and event[0] == MainMenuEvent.CALIBRATION_BTN_CLICKED
+            ):
+                if self._try_start_session(
+                    CalibrationState,
+                    alt_pressed=event[1],
+                    headset_connected=headset_connected,
+                    label="Calibration",
+                ):
                     return True
 
             elif event == MainMenuEvent.RECONNECT_BTN_CLICKED:
@@ -60,8 +80,10 @@ class MainMenuState(FlowState):
 
         return False
 
-    def _try_start_session(self, state_cls, alt_pressed: bool, headset_connected: bool, label: str) -> bool:
-        """Validate preconditions and transition to session state. Returns True if state changed."""
+    def _try_start_session(
+        self, state_cls: Any, alt_pressed: bool, headset_connected: bool, label: str
+    ) -> bool:
+        """Validate preconditions and start a session. True if the state changed."""
         if alt_pressed:
             print(f"Starting {label} State (no_eeg_mode=True, alt-forced)")
             self.flow_controller.change_state(state_cls, no_eeg_mode=True)
@@ -70,7 +92,10 @@ class MainMenuState(FlowState):
             print(f"Starting {label} State with EEG")
             self.flow_controller.change_state(state_cls, no_eeg_mode=False)
             return True
-        print(f"Cannot start {label.lower()}: headset not connected. Hold Alt to start without EEG.")
+        print(
+            f"Cannot start {label.lower()}: headset not connected. "
+            "Hold Alt to start without EEG."
+        )
         return False
 
     def _try_reconnect(self, headset_connected: bool) -> None:

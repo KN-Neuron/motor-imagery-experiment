@@ -10,7 +10,7 @@
   - Mikołaj Popik — eeg_headset
 - **Okres realizacji:** 2025–2026
 - **Repozytorium:** https://github.com/KN-Neuron/motor-imagery-experiment
-- **Wersja dokumentu:** 1.0
+- **Wersja dokumentu:** 1.1 (protokół badawczy: bloki, imagery/execution, metadane BIDS)
 
 ---
 
@@ -30,7 +30,7 @@ Motor Imagery Experiment to niezbędna infrastruktura danych dla projektu BrainB
 
 ### 3.1 Opis ogólny
 
-Desktopowa aplikacja do prowadzenia sesji EEG: kalibracyjnych (użytkownik wykonuje zadania motoryczne, aplikacja zapisuje odpowiedzi EEG i pokazuje wynik klasyfikatora) oraz eksperymentalnych (rejestracja ciągłego strumienia EEG ze znacznikami). Dane wyjściowe to pliki EDF+ (ciągłe EEG z adnotacjami) oraz events.tsv w formacie BIDS.
+Desktopowa aplikacja do zbierania danych EEG w badaniu motor imagery (lewa/prawa ręka): sesje kalibracyjne i eksperymentalne mają ten sam protokół (instrukcja, kontrola jakości sygnału, spoczynek, trening, bloki MI, osobny blok artefaktów). Informacja zwrotna jest domyślnie wyłączona. Dane wyjściowe to EDF+ (ciągłe EEG z adnotacjami), `events.tsv` (BIDS + kolumny block/trial/condition), `sync_log.tsv`, `session_metadata.json` oraz `participants.tsv` / `sessions.tsv`; eksport do BIDS-EEG: `tools/export_bids.py`. Opis protokołu do wniosku o zgodę komisji: [protocol.md](protocol.md).
 
 ### 3.2 Architektura
 
@@ -53,8 +53,9 @@ Desktopowa aplikacja do prowadzenia sesji EEG: kalibracyjnych (użytkownik wykon
 - **HeadsetSelectionDialog** — dialog pokazywany przy starcie aplikacji; użytkownik wybiera model headsetu z listy (wypełnianej z `brainaccess.config.yaml`) lub tryb MOCK (syntetyczne dane), klika Connect. Dialog tworzy driver, sprawdza połączenie i przekazuje gotowy `EEGHeadset` do FlowController.
 - **MainMenuState** — pełni rolę "lobby" między sesjami: uruchamia kalibrację lub eksperyment, obsługuje powrót po sesji i reakcję na rozłączenie czepka (przycisk Reconnect).
 - **EEGHeadset** — abstrakcja headseta; obsługuje BrainAccess SDK (HALO / MIDI / MAXI / SAMPLE) oraz MockDriver (syntetyczne dane). Wybór sterownika jest dynamiczny — dokonywany w runtime przez menu, nie przy starcie.
-- **SampleManager** — generuje sekwencje prób (FIXATION → CUE → REST) wg konfiguracji.
-- **SessionSaver** — subskrybent EEGHeadset; zapisuje dane na bieżąco do EDF+ i events.tsv.
+- **SampleManager** — buduje całą sesję jako bloki prób (FIXATION → CUE → zadanie → ITI z jitterem), z ziarnem losowania i ograniczeniem serii tej samej klasy; artefakty w osobnym bloku.
+- **SessionState** — wspólna logika sesji eksperymentu i kalibracji: licznik kroku zatrzymywany na czas pauzy, markery z metadanymi, feedback `none|model|demo`, kontrola jakości przed nagraniem.
+- **SessionSaver** — subskrybent EEGHeadset; zapisuje EDF+, `events.tsv`, `sync_log.tsv` i `session_metadata.json`.
 - **GUI** — widoki PyQt6 rysowane przez QPainter, ciemny motyw; komunikacja przez kolejkę zdarzeń.
 
 ---
@@ -141,13 +142,14 @@ W skrócie: `poetry install`, `poetry run python -m src.main`, w menu głównym 
 
 ### 7.1 Co działa
 
-- Pełny przepływ kalibracji: sekwencja cue → zapis EEG → wynik klasyfikatora (placeholder: w trybie z EEG zwraca zawsze poprawną klasę, w trybie no_eeg_mode — losową)
-- Pełny przepływ eksperymentu: sekwencja prób z ciągłym zapisem EEG
-- Eksport danych: EDF+ z adnotacjami + events.tsv (BIDS)
+- Pełny protokół sesji w trybie MOCK: instrukcja → kontrola jakości → blok spoczynku → trening → bloki MI z przerwami → blok artefaktów → ekran końcowy
+- Domyślnie brak informacji zwrotnej; tryb `demo` (losowy) jest oznaczony na ekranie jako „FEEDBACK DEMO, NIE PRAWDZIWY KLASYFIKATOR”
+- Pauza zatrzymuje licznik kroku; przerwany krok ma `interrupted=true`
+- Eksport danych: EDF+ z adnotacjami + events.tsv + sync_log.tsv + metadane; `tools/export_bids.py`
 - Tryb mock: pełna funkcjonalność bez fizycznego headseta, z konfiguracją kanałów dowolnego modelu
 - Wybór headseta w dialogu startowym (HALO 4CH, MIDI 16CH, MAXI 32CH, SAMPLE 64CH oraz MOCK) — po rozłączeniu możliwy Reconnect z menu bez restartu aplikacji
 - Wykrywanie rozłączenia czepka w trakcie sesji: marker `DISCONNECTED` w EDF, czyste zamknięcie sesji, powrót do menu
-- Konfiguracja sesji przez UI (typy cue, liczba prób, nazwa folderu)
+- Konfiguracja sesji przez UI (bloki, liczba prób, czasy, ITI, feedback, klasy) oraz ekran uczestnika (kod `sub-001`, numer sesji, zgoda)
 
 ### 7.2 Demo
 
@@ -161,16 +163,40 @@ print(raw.annotations)
 
 ### 7.3 Metryki
 
-Klasyfikator w tej aplikacji jest placeholderem — w trybie z EEG zwraca zawsze poprawną klasę (`current_step.step_type`), w trybie no_eeg_mode zwraca losową klasę z puli CLASSIFIABLE. Rzeczywisty model klasyfikacyjny jest częścią szerszego projektu BrainBoard i będzie integrowany osobno. Aplikacja jest odpowiedzialna za zbieranie danych, nie za ich analizę.
+Aplikacja nie zawiera klasyfikatora. Wcześniejsza wersja pokazywała w kalibracji prawdziwą klasę bodźca jako „wynik klasyfikatora” (uczestnik zawsze widział „trafione”) — zostało to usunięte. Obecnie `feedback: none` (domyślnie), `demo` (losowe, z czerwonym oznaczeniem na ekranie) oraz `model` (tylko interfejs `Classifier.predict`, bez modelu). Rzeczywisty model jest częścią projektu BrainBoard. Aplikacja zbiera dane, nie analizuje ich.
 
 ### 7.4 Format danych wyjściowych
 
-Każda sesja produkuje folder z dwoma plikami:
+Każda sesja produkuje folder `sub-XXX/ses-YY/` (plus `participants.tsv` i `sessions.tsv` w katalogu danych) z plikami:
 
 - **`session.edf`** — pełny zapis EEG w formacie **EDF+**, czyli standardzie de facto klinicznego i badawczego EEG (czytany przez MNE-Python, EEGLAB, FieldTrip i inne). Zawiera ciągły strumień próbek dla wszystkich kanałów aktywnego czepka, etykietowanych nazwami w systemie 10-20 (Fp1, F3, Cz, ...). Wewnątrz pliku zaszyte są też adnotacje opisujące kolejne fazy próby (FIXATION, CUE, REST), pauzy, wynik klasyfikatora w trybie kalibracji oraz markery rozłączenia czepka jeśli wystąpiło.
-- **`events.tsv`** — lista zdarzeń w formacie **BIDS** (Brain Imaging Data Structure), standardzie wymaganym przez większość neurosharing platforms (OpenNeuro itp.). Plik tabularny z kolumnami `onset`, `duration`, `trial_type` — gotowy do parsowania w pandas albo do bezpośredniego użycia w pipeline'ach analizy.
+- **`events.tsv`** — lista zdarzeń w formacie **BIDS** (Brain Imaging Data Structure), standardzie wymaganym przez większość neurosharing platforms (OpenNeuro itp.). Plik tabularny z kolumnami `onset`, `duration`, `trial_type` oraz (dodane) `block_id`, `trial_id`, `condition`, `planned_duration`, `actual_duration`, `interrupted`, `practice`, `feedback_mode` — gotowy do parsowania w pandas. Domyślna analiza pomija `practice=true` i próby z `interrupted=true`.
+- **`sync_log.tsv`** — znaczniki czasu zegara monotonicznego (`perf_counter_ns`) każdego markera, czas ostatniego pakietu EEG, planowany start i rzeczywiste wyświetlenie kroku (koniec pierwszego `paintEvent`); do szacowania opóźnień ([latency.md](latency.md)).
+- **`session_metadata.json`** — wersja aplikacji (hash commita), model headsetu, `channel_map`, częstotliwość próbkowania, jednostki, wersja SDK, ziarno losowania, pełna konfiguracja prób, tryb feedbacku, system, odświeżanie monitora, wynik kontroli jakości, liczba rzeczywistych próbek.
+- **`qc_rest.npy`** — fragment spoczynku z kontroli jakości.
 
-Oba formaty są otwarte, niezależne od żadnego konkretnego producenta, czytelne za 10 lat. Zapis odbywa się na bieżąco w trakcie sesji (nie na końcu) — nawet jeśli aplikacja przerwie się nieoczekiwanie, dane do tego momentu są bezpieczne.
+Oba formaty są otwarte, niezależne od żadnego konkretnego producenta, czytelne za 10 lat. EDF zapisywany jest na bieżąco w trakcie sesji, natomiast `events.tsv`, `sync_log.tsv` i `session_metadata.json` powstają dopiero przy zamknięciu sesji. Przy awarii procesu pozostaje wyłącznie (możliwie niepełny) EDF — nie zakładaj, że ta ścieżka została przetestowana.
+
+### 7.5 Protokół badawczy, ograniczenia i pomiary przed pierwszą sesją
+
+Protokół (klasy, bloki, liczba prób, czas sesji, ryzyka, anonimizacja) opisuje [protocol.md](protocol.md). Znane ograniczenia:
+
+- **Opóźnienie markerów nie jest zmierzone.** Marker to liczba próbek odebranych w chwili startu kroku; opóźnienie wyświetlania (rysowanie, kompozytor, monitor) i transmisji Bluetooth jest nieznane aż do wykonania procedury z [latency.md](latency.md). Wcześniejsze stwierdzenie „dokładność ograniczona tylko przez sample rate (4 ms)” dotyczyło wyłącznie przeliczenia indeksu próbki na czas, nie opóźnienia bodźca.
+- **SSVEP niezwalidowany.** Miganie liczone z zegara (nie z liczby klatek), ale niesynchronizowane z VSync i niezmierzone; rygorystyczne SSVEP wymaga np. PsychoPy.
+- **Brak walidacji klasyfikatora** (`feedback=model` to tylko interfejs).
+- **Utrata próbek** nie jest wykrywana dla BrainAccess: nie wiadomo, czy SDK udostępnia licznik próbek lub znacznik czasu pakietu. Mechanizm `DATA_GAP` działa dla sterowników implementujących `pop_dropped_samples()` (np. mock).
+- **Ostatni rekord EDF** jest dopełniany zerami; koniec danych oznacza adnotacja `END_OF_DATA` i `n_samples_real` w metadanych.
+- **Zakres EDF ±3200 µV**: próbki poza zakresem są obcinane w pliku; aplikacja liczy je i ostrzega.
+- **Progi kontroli jakości** są wartościami startowymi, niezwalidowanymi dla suchych elektrod BrainAccess.
+
+**Co trzeba zmierzyć przed pierwszą sesją:**
+
+- [ ] opóźnienie marker → ekran → EEG i jego jitter ([latency.md](latency.md));
+- [ ] czy SDK BrainAccess podaje licznik próbek / znacznik czasu pakietu;
+- [ ] typowy offset DC i amplitudę elektrod względem zakresu ±3200 µV;
+- [ ] częstotliwość odświeżania monitora i gubienie klatek na ekranie bodźców;
+- [ ] progi kontroli jakości na kilku sesjach pilotażowych;
+- [ ] pełna sesja pilotażowa: czas trwania, zmęczenie, liczba przerwanych prób.
 
 ---
 
@@ -185,7 +211,10 @@ Opis: Znaczniki zdarzeń (onset prób) zapisywane z timestampem systemowym
 
 Rozwiązanie: Znaczniki zapisywane jako indeks próbki EEG (sample_idx),
              przeliczany na czas przez sample_idx / sample_rate.
-             Dokładność ograniczona tylko przez sample rate headseta (250 Hz → 4ms).
+             To usuwa dryft zegara systemowego względem sygnału, ale NIE mierzy
+             opóźnienia wyświetlania ani transmisji (nieznane, zob. latency.md).
+             Dodatkowo sync_log.tsv zapisuje zegar monotoniczny i czas
+             wyświetlenia kroku.
 ```
 
 ```
@@ -194,8 +223,9 @@ Problem: Testowanie bez headseta
 Opis: BrainAccess SDK wymaga fizycznego urządzenia i sterowników Bluetooth.
       Uniemożliwiało to testowanie i development poza laboratorium.
 
-Rozwiązanie: MockDriver generujący syntetyczne dane EEG (alfa + szum gaussowski).
-             Aktywowany przez Alt+Start bez zmian w kodzie logiki.
+Rozwiązanie: MockDriver generujący syntetyczne dane EEG (alfa + szum gaussowski),
+             wybierany w dialogu startowym. Wszystkie testy (pytest) działają
+             na mocku, bez SDK i bez sprzętu.
 ```
 
 ```
@@ -339,6 +369,6 @@ Rozwiązanie: Na Windows driver BrainAccess jest uruchamiany w osobnym subproces
 
 ## 13. Status projektu
 
-W trakcie — aplikacja do zbierania danych gotowa; integracja z klasyfikatorem i projekt BrainBoard w toku.
+W trakcie — protokół zbierania danych zaimplementowany i przetestowany na mocku; przed pierwszą sesją z uczestnikiem wymagane są pomiary z sekcji 7.5 (opóźnienie, SDK) oraz zgoda komisji ([protocol.md](protocol.md)). Integracja z klasyfikatorem i projekt BrainBoard w toku.
 
 ---

@@ -1,10 +1,11 @@
 from PyQt6.QtWidgets import QPushButton
-from PyQt6.QtCore import Qt, QRect
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import QRect
 from typing import Callable, Tuple
 
+
 class Button(QPushButton):
-    def __init__(self,
+    def __init__(
+        self,
         rect: QRect,
         text: str,
         callback: Callable[[], None],
@@ -12,7 +13,7 @@ class Button(QPushButton):
         hover_color: Tuple[int, int, int, int] = (60, 150, 240, 255),
         text_color: Tuple[int, int, int] = (255, 255, 255),
         font_size: int = 22,
-        parent=None
+        parent=None,
     ) -> None:
         super().__init__(text, parent)
         self.setGeometry(rect)
@@ -31,9 +32,16 @@ class Button(QPushButton):
     def _update_stylesheet(self, hover: bool):
         color = self.hover_color if hover else self.base_color
         bg_color = f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3]})"
-        text_col = f"rgb({self.text_color[0]}, {self.text_color[1]}, {self.text_color[2]})"
+        hover_col = (
+            f"rgba({self.hover_color[0]}, {self.hover_color[1]}, "
+            f"{self.hover_color[2]}, {self.hover_color[3]})"
+        )
+        text_col = (
+            f"rgb({self.text_color[0]}, {self.text_color[1]}, {self.text_color[2]})"
+        )
 
-        self.setStyleSheet(f"""
+        self.setStyleSheet(
+            f"""
             QPushButton {{
                 background-color: {bg_color};
                 color: {text_col};
@@ -43,14 +51,15 @@ class Button(QPushButton):
                 border: none;
             }}
             QPushButton:hover {{
-                background-color: rgba({self.hover_color[0]}, {self.hover_color[1]}, {self.hover_color[2]}, {self.hover_color[3]});
+                background-color: {hover_col};
             }}
-        """)
-    
+        """
+        )
+
     def enterEvent(self, event):
         self._update_stylesheet(True)
         super().enterEvent(event)
-    
+
     def leaveEvent(self, event):
         self._update_stylesheet(False)
         super().leaveEvent(event)

@@ -1,30 +1,35 @@
 from PyQt6.QtWidgets import QVBoxLayout, QCheckBox
 
-from src.sample_manager.experiment_step_type import CLASSIFIABLE
+from src.sample_manager.experiment_step_type import (
+    ARTIFACTS,
+    CLASSIFIABLE,
+    ExperimentStepType,
+    parse_step_type,
+)
+
+MAIN_CUES = [*CLASSIFIABLE, ExperimentStepType.SSVEP_FOCUS]
+ARTIFACT_CUES = list(ARTIFACTS)
 
 
-_CUE_DISPLAY_NAMES = {
-    "double_blink": "Double blink",
-    "left_hand_clench": "Left hand clench",
-    "right_hand_clench": "Right hand clench",
-    "jaw_clench": "Jaw clench",
-    "head_movement": "Head movement",
-    "ssvep_focus": "SSVEP focus",
-}
+def _display_name(cue_value: str) -> str:
+    return cue_value.replace("_", " ").capitalize()
 
 
-def make_cue_checkboxes(layout: QVBoxLayout, enabled_cues: list[str] | None) -> dict[str, QCheckBox]:
-    """Create checkboxes for all classifiable cue types. Returns {cue_value: checkbox}."""
-    all_cue_values = [step.value for step in CLASSIFIABLE]
-    enabled_set = set(c.lower() for c in enabled_cues) if enabled_cues is not None else set(all_cue_values)
-
+def make_cue_checkboxes(
+    layout: QVBoxLayout,
+    enabled_cues: list[str] | None,
+    cue_types: list[ExperimentStepType] = MAIN_CUES,
+) -> dict[str, QCheckBox]:
+    """Create checkboxes for the given cue types. Returns {cue_value: checkbox}."""
+    enabled = {
+        parse_step_type(c) for c in enabled_cues or []
+    }  # legacy names are mapped
     checkboxes = {}
-    for cue_value in all_cue_values:
-        display_name = _CUE_DISPLAY_NAMES.get(cue_value, cue_value)
-        cb = QCheckBox(display_name)
-        cb.setChecked(cue_value in enabled_set)
+    for cue_type in cue_types:
+        cb = QCheckBox(_display_name(cue_type.value))
+        cb.setChecked(cue_type in enabled)
         layout.addWidget(cb)
-        checkboxes[cue_value] = cb
+        checkboxes[cue_type.value] = cb
 
     return checkboxes
 

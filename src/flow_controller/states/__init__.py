@@ -1,4 +1,4 @@
-from .flow_state import FlowState
+from .flow_state import FlowState  # noqa: F401
 from .experiment_state import ExperimentState
 from .main_menu_state import MainMenuState
 from .calibration_state import CalibrationState

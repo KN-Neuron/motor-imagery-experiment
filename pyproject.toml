@@ -35,6 +35,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = [
     "-v",
     "--strict-markers",
@@ -50,8 +51,20 @@ python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+ignore_missing_imports = true
+explicit_package_bases = true
+mypy_path = "."
 
 [tool.black]
 line-length = 88
-target-version = ['py313']
+target-version = ['py312']
 skip-string-normalization = true
+
+# Legacy GUI widgets that predate the type-checking requirement.
+[[tool.mypy.overrides]]
+module = [
+    "src.gui.shared.sidebar",
+    "src.gui.shared.button",
+    "src.gui.views.main_menu_view",
+]
+disallow_untyped_defs = false

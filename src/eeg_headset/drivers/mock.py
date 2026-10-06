@@ -18,13 +18,13 @@ class MockDriver:
     ) -> None:
         if config is not None:
             # If a config is provided, use its settings
-            # Since session_saver rely on the config for metadata, we want to set it even in the mock driver
+            # session_saver relies on the config for metadata, so set it here too
             self._config = config
             self._sampling_rate = config.sample_rate_hz
             self._channel_count = config.n_channels
         else:
-            # Use only for testing purposes where config is not used. In practice, the MockDriver should always be initialized with a config.
-            self._config = None
+            # Testing only: in practice MockDriver should always get a config.
+            self._config = None  # type: ignore[assignment]
             self._sampling_rate = sampling_rate
             self._channel_count = channel_count
         self._init_state()
@@ -35,6 +35,7 @@ class MockDriver:
         self._is_streaming = False
         self._total_generated_samples = 0
         self._last_read_time = 0.0
+        self._pending_dropped = 0
 
     @property
     def sampling_rate(self) -> int:
@@ -43,15 +44,15 @@ class MockDriver:
     @property
     def channel_count(self) -> int:
         return self._channel_count
-    
+
     @property
     def is_connected(self) -> bool:
         return self._is_connected
-    
+
     @property
     def is_streaming(self) -> bool:
         return self._is_streaming
-    
+
     @property
     def config(self) -> HeadsetConfig:
         return self._config
@@ -92,6 +93,14 @@ class MockDriver:
 
         print(f"[MockDriver] Annotation injected into hardware stream: '{text}'")
 
+    def inject_gap(self, n_samples: int) -> None:
+        """Test hook: simulate `n_samples` lost in transit before the next read."""
+        self._pending_dropped += n_samples
+
+    def pop_dropped_samples(self) -> int:
+        dropped, self._pending_dropped = self._pending_dropped, 0
+        return dropped
+
     def read_available_samples(self) -> np.ndarray:
         if not self._is_connected or not self._is_streaming:
             raise RuntimeError(
@@ -111,18 +120,23 @@ class MockDriver:
         self._last_read_time += n_samples / self._sampling_rate
 
         # Generate realistic EEG-like data: sine waves + noise, in µV range
-        t = np.arange(
-            self._total_generated_samples,
-            self._total_generated_samples + n_samples,
-            dtype=float,
-        ) / self._sampling_rate
+        t = (
+            np.arange(
+                self._total_generated_samples,
+                self._total_generated_samples + n_samples,
+                dtype=float,
+            )
+            / self._sampling_rate
+        )
         self._total_generated_samples += n_samples
 
         channels = []
         for ch in range(self._channel_count):
             freq = 8.0 + ch * 2.0  # alpha-band frequencies per channel
             signal = 50.0 * np.sin(2 * np.pi * freq * t)  # ~50 µV sine
-            noise = np.random.default_rng(seed=None).normal(0, 10.0, n_samples)  # ~10 µV noise
+            noise = np.random.default_rng(seed=None).normal(
+                0, 10.0, n_samples
+            )  # ~10 µV noise
             channels.append(signal + noise)
 
         return np.vstack(channels)

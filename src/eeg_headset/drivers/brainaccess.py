@@ -32,11 +32,11 @@ class BrainAccessDriver:
 
     @property
     def is_connected(self) -> bool:
-        return self._mgr.is_connected()
+        return bool(self._mgr.is_connected())
 
     @property
     def is_streaming(self) -> bool:
-        return self._mgr.is_streaming()
+        return bool(self._mgr.is_streaming())
 
     @property
     def config(self) -> HeadsetConfig:

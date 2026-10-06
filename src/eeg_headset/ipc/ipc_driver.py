@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import atexit
-import sys
 import time
 from dataclasses import dataclass
 from multiprocessing.connection import Connection
@@ -25,7 +24,7 @@ class IpcOptions:
 class IpcHeadsetDriver:
     """Implements HeadsetDriver by delegating to a subprocess via multiprocessing Pipe.
 
-    This is primarily meant to isolate native SDK crashes (access violations) from the Qt GUI process.
+    Meant to isolate native SDK crashes (access violations) from the Qt GUI process.
     """
 
     def __init__(
@@ -38,10 +37,12 @@ class IpcHeadsetDriver:
         self._config = config
         self._options = options or IpcOptions()
 
-        ctx = mp.get_context(self._options.start_method)
+        ctx: Any = mp.get_context(self._options.start_method)
         parent_conn, child_conn = ctx.Pipe(duplex=True)
         self._conn: Connection = parent_conn
-        self._proc = ctx.Process(target=worker_main, args=(child_conn, recipe), daemon=True)
+        self._proc = ctx.Process(
+            target=worker_main, args=(child_conn, recipe), daemon=True
+        )
         self._proc.start()
 
         atexit.register(self._atexit_cleanup)
@@ -49,7 +50,9 @@ class IpcHeadsetDriver:
         # Handshake
         hello = self._recv_or_raise()
         if not hello.get("ok"):
-            raise WorkerError(hello.get("error", "Worker failed"), hello.get("traceback"))
+            raise WorkerError(
+                hello.get("error", "Worker failed"), hello.get("traceback")
+            )
 
         result = hello.get("result") or {}
         self._sampling_rate = int(result.get("sampling_rate", config.sample_rate_hz))
@@ -78,9 +81,12 @@ class IpcHeadsetDriver:
         while True:
             if self._conn.poll(0.05):
                 try:
-                    return self._conn.recv()
+                    message: dict[str, Any] = self._conn.recv()
+                    return message
                 except (EOFError, OSError) as exc:
-                    raise RuntimeError("Headset worker process crashed or exited") from exc
+                    raise RuntimeError(
+                        "Headset worker process crashed or exited"
+                    ) from exc
 
             if time.time() > deadline:
                 raise TimeoutError("Timed out waiting for worker response")
@@ -170,8 +176,16 @@ class IpcHeadsetDriver:
 
 
 def make_brainaccess_recipe(model: str, config_path: str) -> DriverRecipe:
-    return {"version": 1, "driver": "brainaccess", "params": {"model": model, "config_path": config_path}}
+    return {
+        "version": 1,
+        "driver": "brainaccess",
+        "params": {"model": model, "config_path": config_path},
+    }
 
 
 def make_mock_recipe(n_channels: int = 4, sample_rate_hz: int = 250) -> DriverRecipe:
-    return {"version": 1, "driver": "mock", "params": {"n_channels": n_channels, "sample_rate_hz": sample_rate_hz}}
+    return {
+        "version": 1,
+        "driver": "mock",
+        "params": {"n_channels": n_channels, "sample_rate_hz": sample_rate_hz},
+    }

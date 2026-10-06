@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSpinBox, QFrame
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSpinBox, QFrame, QWidget
 from PyQt6.QtGui import QFont
 
 
@@ -107,7 +107,9 @@ START_STYLE = """
 """
 
 
-def make_spinbox(min_val: int, max_val: int, step: int, default: int, width: int = 90) -> QSpinBox:
+def make_spinbox(
+    min_val: int, max_val: int, step: int, default: int, width: int = 90
+) -> QSpinBox:
     sb = QSpinBox()
     sb.setRange(min_val, max_val)
     sb.setSingleStep(step)
@@ -116,7 +118,7 @@ def make_spinbox(min_val: int, max_val: int, step: int, default: int, width: int
     return sb
 
 
-def make_row(label_text: str, widget) -> QHBoxLayout:
+def make_row(label_text: str, widget: QWidget) -> QHBoxLayout:
     row = QHBoxLayout()
     row.setSpacing(12)
     lbl = QLabel(label_text)

@@ -6,13 +6,13 @@ from typing import Any
 import numpy as np
 from multiprocessing.connection import Connection
 
-from src.eeg_headset.drivers import BrainAccessDriver, MockDriver
+from src.eeg_headset.drivers import MockDriver
 from src.eeg_headset.headset_config import HeadsetConfig, HeadsetModel
 
 from .protocol import DriverRecipe
 
 
-def _make_driver(recipe: DriverRecipe):
+def _make_driver(recipe: DriverRecipe) -> Any:
     if recipe.get("version") != 1:
         raise ValueError(f"Unsupported recipe version: {recipe.get('version')}")
 
@@ -22,14 +22,20 @@ def _make_driver(recipe: DriverRecipe):
     if driver == "mock":
         n_channels = int(params.get("n_channels", 4))
         sfreq = int(params.get("sample_rate_hz", 250))
-        return MockDriver(config=HeadsetConfig.mock(n_channels=n_channels, sample_rate_hz=sfreq))
+        return MockDriver(
+            config=HeadsetConfig.mock(n_channels=n_channels, sample_rate_hz=sfreq)
+        )
 
     if driver == "brainaccess":
         model = params.get("model")
         config_path = params.get("config_path", "brainaccess.config.yaml")
         if not model:
             raise ValueError("Missing params.model for brainaccess driver")
-        config = HeadsetConfig(model=HeadsetModel(str(model)), config_path=str(config_path))
+        config = HeadsetConfig(
+            model=HeadsetModel(str(model)), config_path=str(config_path)
+        )
+        from src.eeg_headset.drivers import BrainAccessDriver
+
         return BrainAccessDriver(config=config)
 
     raise ValueError(f"Unknown driver kind: {driver!r}")
@@ -84,7 +90,14 @@ def worker_main(conn: Connection, recipe: DriverRecipe) -> None:
                 break
 
             if op == "status":
-                conn.send(_ok({"is_connected": driver.is_connected, "is_streaming": driver.is_streaming}))
+                conn.send(
+                    _ok(
+                        {
+                            "is_connected": driver.is_connected,
+                            "is_streaming": driver.is_streaming,
+                        }
+                    )
+                )
                 continue
 
             if op == "connect":

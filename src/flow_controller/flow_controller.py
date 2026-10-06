@@ -3,8 +3,8 @@ from PyQt6.QtWidgets import QApplication
 import sys
 import time
 from dataclasses import dataclass
+from typing import Any
 
-from src.eeg_headset.eeg_headset import EEGHeadset
 from .states import MainMenuState, ExperimentState, CalibrationState
 
 
@@ -19,10 +19,10 @@ class HeadsetStatus:
 class FlowController:
     """Manages overall application flow and state transitions."""
 
-    def __init__(self, gui_manager) -> None:
+    def __init__(self, gui_manager: Any) -> None:
         self.gui_manager = gui_manager
-        self.eeg_headset: EEGHeadset | None = None
-        self.state = None
+        self.eeg_headset: Any = None
+        self.state: Any = None
         self.timer = QTimer()
         self.timer.start(10)  # 100 FPS
         self.timer.timeout.connect(self._tick)
@@ -44,7 +44,7 @@ class FlowController:
     def headset_last_error(self) -> str | None:
         return self._headset_status.last_error
 
-    def change_state(self, state, **kwargs):
+    def change_state(self, state: Any, **kwargs: Any) -> None:
         """Exit current state and enter the new one. kwargs are forwarded to enter()."""
         if self.state:
             self.state.exit()
@@ -60,13 +60,15 @@ class FlowController:
 
         self.state.enter(**kwargs)
 
-    def start(self):
-        """Initialize GUI and run the Qt event loop. Headset is pre-connected before this call."""
+    def start(self) -> None:
+        """Initialize GUI and run the Qt event loop (headset is pre-connected)."""
         self.gui_manager.initialize()
         self.change_state(MainMenuState)
 
         try:
-            QApplication.instance().exec()
+            app = QApplication.instance()
+            assert app is not None
+            app.exec()
 
         except Exception as e:
             print(f"[FlowController] Unhandled exception occurred: {e}")
@@ -74,11 +76,13 @@ class FlowController:
         finally:
             self.shutdown()
 
-    def _tick(self):
+    def _tick(self) -> None:
         """Called by QTimer every 10ms."""
         if not self.running:
             self.timer.stop()
-            QApplication.instance().quit()
+            app = QApplication.instance()
+            if app is not None:
+                app.quit()
             return
 
         self._refresh_headset_status()
@@ -115,7 +119,9 @@ class FlowController:
         if self.eeg_headset is not None:
             try:
                 connected = bool(self.eeg_headset.is_connected())
-                streaming = bool(self.eeg_headset.is_streaming()) if connected else False
+                streaming = (
+                    bool(self.eeg_headset.is_streaming()) if connected else False
+                )
             except Exception as e:
                 # Treat failures (IPC worker crash/timeout) as a disconnect.
                 last_error = str(e)
@@ -143,7 +149,7 @@ class FlowController:
         self._headset_status.last_error = last_error
         self._headset_status.updated_at_s = now
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Disconnect headset and exit the process."""
         if self.eeg_headset is not None:
             try:

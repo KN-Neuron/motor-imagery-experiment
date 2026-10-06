@@ -32,7 +32,7 @@ headsets:
       15: "F8"
 
   MAXI_32CH:
-    device_name: "BA MAXI 012" 
+    device_name: "BA MAXI 012"
     n_channels: 32
     sample_rate_hz: 250
     channel_map:

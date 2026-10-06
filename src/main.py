@@ -1,9 +1,10 @@
 import sys
+from typing import Any
 
 
-def _suppress_qt_warnings(msg_type, context, message):
+def _suppress_qt_warnings(msg_type: Any, context: Any, message: str | None) -> None:
     """Filter out noisy Qt warnings."""
-    if "QFont::setPointSize" in message:
+    if message and "QFont::setPointSize" in message:
         return
 
 
@@ -20,7 +21,7 @@ def main() -> None:
     from src.gui.dialogs import HeadsetSelectionDialog
     from src.flow_controller import FlowController
 
-    app = QApplication(sys.argv)  # saved as variable to prevent GC
+    app = QApplication(sys.argv)  # noqa: F841 (kept alive to prevent GC)
 
     dialog = HeadsetSelectionDialog()
     if dialog.exec() != QDialog.DialogCode.Accepted:

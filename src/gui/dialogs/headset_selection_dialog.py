@@ -1,14 +1,20 @@
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-    QPushButton, QApplication
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QComboBox,
+    QPushButton,
+    QApplication,
 )
 from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QWidget
 import yaml
 import sys
 
 from src.eeg_headset.headset_config import HeadsetConfig, HeadsetModel
 from src.eeg_headset.eeg_headset import EEGHeadset
-from src.eeg_headset.drivers import MockDriver, BrainAccessDriver
+from src.eeg_headset.drivers import MockDriver
 from src.eeg_headset.ipc import IpcHeadsetDriver, make_brainaccess_recipe
 
 from ._shared import DIALOG_STYLE, CANCEL_STYLE, START_STYLE, make_row, separator
@@ -18,12 +24,12 @@ class HeadsetSelectionDialog(QDialog):
     MOCK_SENTINEL = "__MOCK__"
     CONFIG_PATH = "brainaccess.config.yaml"
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._headset: EEGHeadset | None = None
         self._setup_ui()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         self.setWindowTitle("EEG Headset Setup")
         self.setFixedSize(380, 300)
         self.setStyleSheet(DIALOG_STYLE)
@@ -45,14 +51,19 @@ class HeadsetSelectionDialog(QDialog):
         self.model_combo = QComboBox()
         combo_font = QFont("Segoe UI", 11)
         self.model_combo.setFont(combo_font)
-        self.model_combo.setStyleSheet("QComboBox::drop-down { border: none; width: 20px; }")
+        self.model_combo.setStyleSheet(
+            "QComboBox::drop-down { border: none; width: 20px; }"
+        )
         self.model_combo.addItem("MOCK (no hardware)", self.MOCK_SENTINEL)
         for m in models:
             self.model_combo.addItem(m, m)
         layout.addLayout(make_row("Headset model:", self.model_combo))
 
         if not models:
-            warn = QLabel("No hardware models found in brainaccess.config.yaml.\nOnly mock driver is available.")
+            warn = QLabel(
+                "No hardware models found in brainaccess.config.yaml.\n"
+                "Only mock driver is available."
+            )
             warn.setStyleSheet("color: rgb(200, 170, 70); font-size: 11px;")
             warn.setWordWrap(True)
             layout.addWidget(warn)
@@ -104,11 +115,17 @@ class HeadsetSelectionDialog(QDialog):
             if selected == self.MOCK_SENTINEL:
                 driver = MockDriver(config=HeadsetConfig.mock())
             else:
-                config = HeadsetConfig(model=HeadsetModel(selected), config_path=self.CONFIG_PATH)
+                config = HeadsetConfig(
+                    model=HeadsetModel(selected), config_path=self.CONFIG_PATH
+                )
                 if sys.platform == "win32":
-                    recipe = make_brainaccess_recipe(model=selected, config_path=self.CONFIG_PATH)
+                    recipe = make_brainaccess_recipe(
+                        model=selected, config_path=self.CONFIG_PATH
+                    )
                     driver = IpcHeadsetDriver(recipe=recipe, config=config)
                 else:
+                    from src.eeg_headset.drivers import BrainAccessDriver
+
                     driver = BrainAccessDriver(config=config)
 
             headset = EEGHeadset(driver)

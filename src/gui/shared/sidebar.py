@@ -84,6 +84,7 @@ class SidebarButton(QWidget):
             self.clicked.emit()
         super().mousePressEvent(event)
 
+
 class Sidebar(QWidget):
     """Sidebar with common controls."""
 
@@ -171,7 +172,9 @@ class Sidebar(QWidget):
             self.pause_btn.set_label("PAUSE")
             self.pause_btn.setToolTip("Pause")
 
-    def set_buttons_visibility(self, show_pause: bool = False, show_back: bool = False, show_quit: bool = False):
+    def set_buttons_visibility(
+        self, show_pause: bool = False, show_back: bool = False, show_quit: bool = False
+    ):
         self.pause_btn.setVisible(show_pause)
         self.quit_btn.setVisible(show_quit)
 

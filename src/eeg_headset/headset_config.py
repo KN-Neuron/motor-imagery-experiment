@@ -11,7 +11,7 @@ class HeadsetModel(Enum):
 
 class HeadsetConfig:
     def __init__(self, model: HeadsetModel, config_path: str = "headsets.yaml"):
-        self.model = model
+        self.model: HeadsetModel | None = model
 
         try:
             with open(config_path, "r", encoding="utf-8") as file:

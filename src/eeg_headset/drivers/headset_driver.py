@@ -83,4 +83,3 @@ class HeadsetDriver(Protocol):
             Returns empty array if no data available.
         """
         ...
-    

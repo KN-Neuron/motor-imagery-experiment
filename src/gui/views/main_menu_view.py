@@ -16,42 +16,59 @@ class MainMenuEvent(Enum):
 
 class MainMenuView(View):
     def __init__(self) -> None:
-        self.experiment_btn: Button = None
-        self.calibration_btn: Button = None
-        self.reconnect_btn: Button = None
+        self.experiment_btn: Button = None  # type: ignore[assignment]
+        self.calibration_btn: Button = None  # type: ignore[assignment]
+        self.reconnect_btn: Button = None  # type: ignore[assignment]
         self.headset_connected = False
         super().__init__()
 
     def _setup_ui(self):
         self.setStyleSheet("background-color: rgb(30, 30, 40);")
 
-        self._register_shortcut(Qt.Key.Key_Q, lambda: self.pending_events.append(MainMenuEvent.QUIT))
-        self._register_shortcut(Qt.Key.Key_R, lambda: self.pending_events.append(MainMenuEvent.RECONNECT_BTN_CLICKED))
+        self._register_shortcut(
+            Qt.Key.Key_Q, lambda: self.pending_events.append(MainMenuEvent.QUIT)
+        )
+        self._register_shortcut(
+            Qt.Key.Key_R,
+            lambda: self.pending_events.append(MainMenuEvent.RECONNECT_BTN_CLICKED),
+        )
 
         def on_experiment_click():
             mods = QApplication.keyboardModifiers()
             alt_pressed = bool(mods & Qt.KeyboardModifier.AltModifier)
-            print(f"[MainMenuView] Experiment button clicked, Alt pressed: {alt_pressed}")
-            self.pending_events.append((MainMenuEvent.EXPERIMENT_BTN_CLICKED, alt_pressed))
+            print(
+                f"[MainMenuView] Experiment button clicked, Alt pressed: {alt_pressed}"
+            )
+            self.pending_events.append(
+                (MainMenuEvent.EXPERIMENT_BTN_CLICKED, alt_pressed)
+            )
 
         self.experiment_btn = Button(
-            QRect(0, 0, 200, 50), "Start Experiment", on_experiment_click,
+            QRect(0, 0, 200, 50),
+            "Start Experiment",
+            on_experiment_click,
             base_color=(60, 60, 80, 180),
             hover_color=(80, 80, 120, 200),
-            parent=self
+            parent=self,
         )
 
         def on_calibration_click():
             mods = QApplication.keyboardModifiers()
             alt_pressed = bool(mods & Qt.KeyboardModifier.AltModifier)
-            print(f"[MainMenuView] Calibration button clicked, Alt pressed: {alt_pressed}")
-            self.pending_events.append((MainMenuEvent.CALIBRATION_BTN_CLICKED, alt_pressed))
+            print(
+                f"[MainMenuView] Calibration button clicked, Alt pressed: {alt_pressed}"
+            )
+            self.pending_events.append(
+                (MainMenuEvent.CALIBRATION_BTN_CLICKED, alt_pressed)
+            )
 
         self.calibration_btn = Button(
-            QRect(0, 0, 200, 50), "Start Calibration", on_calibration_click,
+            QRect(0, 0, 200, 50),
+            "Start Calibration",
+            on_calibration_click,
             base_color=(60, 60, 80, 180),
             hover_color=(80, 80, 120, 200),
-            parent=self
+            parent=self,
         )
 
         def on_reconnect_click():
@@ -59,10 +76,12 @@ class MainMenuView(View):
             self.pending_events.append(MainMenuEvent.RECONNECT_BTN_CLICKED)
 
         self.reconnect_btn = Button(
-            QRect(0, 0, 200, 50), "Reconnect", on_reconnect_click,
+            QRect(0, 0, 200, 50),
+            "Reconnect",
+            on_reconnect_click,
             base_color=(60, 60, 80, 180),
             hover_color=(80, 80, 120, 200),
-            parent=self
+            parent=self,
         )
 
     def update_content(self, headset_connected: bool):
@@ -78,7 +97,9 @@ class MainMenuView(View):
 
         self.experiment_btn.setGeometry(btn_x, btn_y, btn_w, btn_h)
         self.calibration_btn.setGeometry(btn_x, btn_y + btn_h + spacing, btn_w, btn_h)
-        self.reconnect_btn.setGeometry(btn_x, btn_y + 2 * (btn_h + spacing), btn_w, btn_h)
+        self.reconnect_btn.setGeometry(
+            btn_x, btn_y + 2 * (btn_h + spacing), btn_w, btn_h
+        )
 
         # Reconnect is relevant only when disconnected.
         self.reconnect_btn.setVisible(not headset_connected)
@@ -104,10 +125,16 @@ class MainMenuView(View):
         painter.drawText(title_x, title_y, title_text)
 
         try:
-            logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '../../res/imgs', 'kn_neuron_logo.png')
-            logo_pixmap = QPixmap(logo_path).scaled(40, 40,
+            logo_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                '../../res/imgs',
+                'kn_neuron_logo.png',
+            )
+            logo_pixmap = QPixmap(logo_path).scaled(
+                40,
+                40,
                 Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
+                Qt.TransformationMode.SmoothTransformation,
             )
 
             kn_font = QFont('Arial', 24)
@@ -123,7 +150,9 @@ class MainMenuView(View):
             logo_y = int(height * 0.21)
 
             painter.drawPixmap(logo_x, logo_y, logo_pixmap)
-            painter.drawText(logo_x + 40 + 10, logo_y + 8 + kn_metrics.ascent(), kn_text)
+            painter.drawText(
+                logo_x + 40 + 10, logo_y + 8 + kn_metrics.ascent(), kn_text
+            )
         except Exception:
             pass
 
@@ -135,7 +164,9 @@ class MainMenuView(View):
         status_text_1 = "Headset: "
         status_width_1 = status_metrics.horizontalAdvance(status_text_1)
 
-        status_color = QColor(50, 200, 50) if self.headset_connected else QColor(220, 50, 50)
+        status_color = (
+            QColor(50, 200, 50) if self.headset_connected else QColor(220, 50, 50)
+        )
         status_text_2 = "Connected" if self.headset_connected else "Disconnected"
         status_width_2 = status_metrics.horizontalAdvance(status_text_2)
 

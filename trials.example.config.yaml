@@ -1,28 +1,66 @@
+# Copy to trials.config.yaml. All durations in ms. See docs/protocol.md.
 experiment:
-  trials_per_class: 5
-  strategy: stratified
-  fixation_ms: 2000
-  cue_ms: 4000
-  rest_ms: 1500
-  cues:
-    - double_blink
-    - left_hand_clench
-    - right_hand_clench
-    - jaw_clench
-    - head_movement
-    - ssvep_focus
-calibration:
-  trials_per_class: 3
-  strategy: stratified
-  fixation_ms: 2000
-  cue_ms: 4000
-  rest_ms: 1500
-  result_ms: 2000
-  cues:
-    - double_blink
-    - left_hand_clench
-    - right_hand_clench
-    - jaw_clench
-    - head_movement
-    - ssvep_focus
+  # Blocks: each MI block has trials_per_class_per_block trials of every class,
+  # shuffled so that one class never repeats more than max_consecutive_same_class
+  # times. A "rest, press SPACE" screen separates the blocks.
+  n_blocks: 4
+  trials_per_class_per_block: 20
+  max_consecutive_same_class: 3
+  practice_trials_per_class: 2       # PRACTICE block, excluded from analysis
 
+  # One trial: fixation -> cue (instruction) -> task window -> ITI
+  fixation_ms: 1500
+  cue_ms: 1000
+  task_ms: 4000                      # imagery/execution window (0 = cue_ms only)
+  iti_min_ms: 2000                   # inter-trial interval, uniform jitter
+  iti_max_ms: 3500
+
+  rest_eyes_open_ms: 120000          # rest block at session start (0 = off)
+  rest_eyes_closed_ms: 0
+
+  # Main blocks. Use *_imagery (imagine, do not move) or *_execution (move).
+  # The old names left_hand_clench / right_hand_clench still work (= execution)
+  # but are deprecated.
+  cues:
+    - left_hand_imagery
+    - right_hand_imagery
+  # Artifacts are recorded in their own block, never mixed with MI blocks.
+  artifact_cues:
+    - double_blink
+    - jaw_clench
+    - head_movement
+  artifact_trials_per_class: 10
+  ssvep_trials: 10                   # used only if ssvep_focus is in `cues`
+  ssvep_frequency_hz: 10.0           # NOT VALIDATED, see docs/protocol.md
+
+  seed: null                         # null = random; the seed is saved in metadata
+  feedback: none                     # none | model | demo
+  # instruction_text: "..."          # optional custom instruction screen text
+
+  qc_duration_s: 10                  # resting fragment for the quality check
+  qc_procedure: false                # optional blink/jaw/eyes open+closed check
+  quality:                           # starting values, tune on real recordings
+    flat_rms_uv: 0.5
+    saturation_uv: 3000
+    high_rms_uv: 150
+    line_noise_ratio: 0.3
+    drift_uv_per_s: 50
+    mains_hz: 50
+
+calibration:
+  n_blocks: 1
+  trials_per_class_per_block: 10
+  max_consecutive_same_class: 3
+  practice_trials_per_class: 2
+  fixation_ms: 1500
+  cue_ms: 1000
+  task_ms: 4000
+  iti_min_ms: 2000
+  iti_max_ms: 3500
+  rest_eyes_open_ms: 0
+  result_ms: 2000                    # feedback screen (only if feedback != none)
+  cues:
+    - left_hand_imagery
+    - right_hand_imagery
+  artifact_cues: []
+  feedback: none
