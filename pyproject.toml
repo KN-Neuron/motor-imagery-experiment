@@ -14,6 +14,10 @@ dependencies = [
     "brainaccess==3.6.1",
     "pyyaml==6.0.3",
     "pyedflib>=0.1.37"
+    "pygame>=2.5.2",
+    "numpy>=1.24.0",
+    "pytest>=7.4.0",
+    "pytest-mock>=3.11.1"
 ]
 
 [project.optional-dependencies]
@@ -36,6 +40,18 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+    "pre-commit>=3.4.0"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 addopts = [
     "-v",
     "--strict-markers",

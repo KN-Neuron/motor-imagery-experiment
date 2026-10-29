@@ -1,0 +1,10 @@
+README.md
+pyproject.toml
+src/data_manager/__init__.py
+src/egg_headset/__init__.py
+src/gui/__init__.py
+src/hex_o_spell_experiment.egg-info/PKG-INFO
+src/hex_o_spell_experiment.egg-info/SOURCES.txt
+src/hex_o_spell_experiment.egg-info/dependency_links.txt
+src/hex_o_spell_experiment.egg-info/requires.txt
+src/hex_o_spell_experiment.egg-info/top_level.txt
