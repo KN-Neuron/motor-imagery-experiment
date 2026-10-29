@@ -1,0 +1,48 @@
+# Python virtual environment
+venv/
+
+# Python compiled/cached files
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE settings
+.idea/
+.vscode/
+
+# Python package metadata
+*.egg-info/
+src/*.egg-info/
+
+# Build artifacts
+dist/
+build/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment variables
+.env
+.env.local
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Config files (runtime; templates `*.example.config.yaml` are committed)
+trials.config.yaml
+brainaccess.config.yaml
+
+# Session data
+sessions/*
+!sessions/.gitkeep
+
+# Binary files
+*.bin
+*.dll
+
+# Sandbox scripts
+src/sandbox

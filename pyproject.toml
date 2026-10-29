@@ -1,14 +1,19 @@
 [project]
-name = "hex-o-spell-experiment"
+name = "motor-imagery-experiment"
 version = "0.1.0"
-description = "A pygame-based experiment with GUI, egg headset, and data manager components"
+description = "Desktop application for BCI experiments using BrainAccess EEG headset (motor imagery, SSVEP). Part of the BrainBoard project."
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Koło Naukowe Neuron"}
 ]
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.13"
 dependencies = [
+    "numpy>=1.24.0",
+    "pyqt6 (>=6.10.2,<7.0.0)",
+    "brainaccess==3.6.1",
+    "pyyaml==6.0.3",
+    "pyedflib>=0.1.37"
     "pygame>=2.5.2",
     "numpy>=1.24.0",
     "pytest>=7.4.0",
@@ -20,6 +25,21 @@ dev = [
     "black>=23.9.1",
     "flake8>=6.0.0",
     "mypy>=1.5.1",
+    "pre-commit>=3.4.0",
+    "pytest>=7.4.0",
+    "pytest-mock>=3.11.1"
+]
+
+[tool.poetry]
+package-mode = false
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
     "pre-commit>=3.4.0"
 ]
 
@@ -47,8 +67,20 @@ python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+ignore_missing_imports = true
+explicit_package_bases = true
+mypy_path = "."
 
 [tool.black]
 line-length = 88
 target-version = ['py312']
 skip-string-normalization = true
+
+# Legacy GUI widgets that predate the type-checking requirement.
+[[tool.mypy.overrides]]
+module = [
+    "src.gui.shared.sidebar",
+    "src.gui.shared.button",
+    "src.gui.views.main_menu_view",
+]
+disallow_untyped_defs = false

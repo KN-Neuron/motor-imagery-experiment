@@ -1,57 +1,38 @@
 import sys
+from typing import Any
 
-import pygame
 
-from src.data_manager import DataManager
-from src.egg_headset import EggHeadset
-from src.gui import GUIManager
+def _suppress_qt_warnings(msg_type: Any, context: Any, message: str | None) -> None:
+    """Filter out noisy Qt warnings."""
+    if message and "QFont::setPointSize" in message:
+        return
 
 
 def main() -> None:
-    gui = GUIManager()
-    headset = EggHeadset()
-    data_manager = DataManager()
+    # IMPORTANT (Windows + multiprocessing spawn): keep PyQt imports inside main().
+    # Child processes created via spawn will import this module, and importing PyQt
+    # in the worker process can trigger the BrainAccess native crash.
+    from PyQt6.QtWidgets import QApplication, QDialog
+    from PyQt6.QtCore import qInstallMessageHandler
 
-    gui.initialize()
+    qInstallMessageHandler(_suppress_qt_warnings)
 
-    if headset.connect():
-        print("Connected to EEG headset")
-    else:
-        print("Warning: Could not connect to EEG headset")
+    from src.gui import GUIManager
+    from src.gui.dialogs import HeadsetSelectionDialog
+    from src.flow_controller import FlowController
 
-    running = True
-    clock = pygame.time.Clock()
+    app = QApplication(sys.argv)  # noqa: F841 (kept alive to prevent GC)
 
-    try:
-        while running:
-            running = gui.handle_events()
+    dialog = HeadsetSelectionDialog()
+    if dialog.exec() != QDialog.DialogCode.Accepted:
+        sys.exit(0)
 
-            if headset.connected:
-                raw_data = headset.read_data()
-                if raw_data:
-                    processed_data = headset.process_data(raw_data)
-                    data_manager.add_data_point(processed_data)
+    headset = dialog.get_headset()
 
-                    # dodajcie logger
-
-            gui.update()
-
-            gui.render()
-
-            clock.tick(60)
-
-    except KeyboardInterrupt:
-        print("\nShutting down gracefully...")
-
-    finally:
-        if headset.connected:
-            headset.disconnect()
-
-        export_file = data_manager.export_current_session("final_session")
-        print(f"Session data exported to: {export_file}")
-
-        pygame.quit()
-        sys.exit()
+    gui_manager = GUIManager()
+    flow_controller = FlowController(gui_manager)
+    flow_controller.eeg_headset = headset
+    flow_controller.start()
 
 
 if __name__ == "__main__":
